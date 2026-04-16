@@ -1,0 +1,467 @@
+{% extends "driver/base_driver.html" %}
+
+{% block title %}Earnings Analytics - Driver Portal{% endblock %}
+
+{% block content %}
+<style>
+    .analytics-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .analytics-header {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .analytics-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.75rem;
+    }
+
+    .analytics-header p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #10b981;
+    }
+
+    .stat-card.earnings {
+        border-left-color: #10b981;
+    }
+
+    .stat-card.deliveries {
+        border-left-color: #3b82f6;
+    }
+
+    .stat-card.rating {
+        border-left-color: #f59e0b;
+    }
+
+    .stat-card.tips {
+        border-left-color: #8b5cf6;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .stat-trend {
+        font-size: 0.875rem;
+        color: #10b981;
+        margin-top: 0.5rem;
+    }
+
+    .chart-section {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-section h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.25rem;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .chart-section h2 i {
+        color: #3b82f6;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 1rem;
+    }
+
+    .chart-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        border-radius: 0.375rem;
+        color: #94a3b8;
+    }
+
+    .peak-hours-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 1rem;
+    }
+
+    .hour-box {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        text-align: center;
+        border-left: 3px solid #cbd5e1;
+    }
+
+    .hour-box.peak {
+        background: #fef3c7;
+        border-left-color: #f59e0b;
+    }
+
+    .hour-time {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 1.25rem;
+    }
+
+    .hour-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+        text-transform: uppercase;
+    }
+
+    .locations-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .location-item {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left: 3px solid #3b82f6;
+    }
+
+    .location-info h3 {
+        margin: 0;
+        color: #1e293b;
+        font-size: 1rem;
+    }
+
+    .location-stats {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    .location-earnings {
+        text-align: right;
+    }
+
+    .location-earnings-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #10b981;
+    }
+
+    .location-earnings-avg {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .payments-section {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .payments-section h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.25rem;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .payments-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .payments-table th {
+        background: #f1f5f9;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        border-bottom: 2px solid #e2e8f0;
+        font-size: 0.875rem;
+    }
+
+    .payments-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        color: #475569;
+    }
+
+    .payments-table tr:hover {
+        background: #f8fafc;
+    }
+
+    .payment-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .payment-status.paid {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .payment-status.pending {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #64748b;
+    }
+
+    .empty-state i {
+        font-size: 2rem;
+        color: #cbd5e1;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .peak-hours-list {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .chart-container {
+            height: 250px;
+        }
+
+        .payments-table {
+            font-size: 0.875rem;
+        }
+
+        .payments-table th, .payments-table td {
+            padding: 0.75rem;
+        }
+    }
+</style>
+
+<div class="analytics-container">
+    <!-- Header -->
+    <div class="analytics-header">
+        <h1><i class="fas fa-chart-line"></i> Earnings Analytics</h1>
+        <p>Last 30 days performance and insights</p>
+    </div>
+
+    <!-- Key Stats -->
+    <div class="stats-grid">
+        <div class="stat-card earnings">
+            <div class="stat-label">Total Earnings (30 days)</div>
+            <div class="stat-value">
+                ₵{{ "%.2f"|format(metrics|sum(attribute='earnings', start=0)) }}
+            </div>
+            <div class="stat-trend">
+                <i class="fas fa-arrow-up"></i> vs last period
+            </div>
+        </div>
+
+        <div class="stat-card deliveries">
+            <div class="stat-label">Total Deliveries</div>
+            <div class="stat-value">
+                {{ metrics|sum(attribute='deliveries_count', start=0) }}
+            </div>
+            <div class="stat-trend">
+                <i class="fas fa-arrow-up"></i> Active period
+            </div>
+        </div>
+
+        <div class="stat-card rating">
+            <div class="stat-label">Average Rating</div>
+            <div class="stat-value">
+                {% set avg_rating = (metrics|sum(attribute='average_rating', start=0) / (metrics|length or 1))|round(1) %}
+                {{ avg_rating }}⭐
+            </div>
+            <div class="stat-trend">
+                Excellent performance
+            </div>
+        </div>
+
+        <div class="stat-card tips">
+            <div class="stat-label">Tips Earned</div>
+            <div class="stat-value">
+                ₵{{ "%.2f"|format(metrics|sum(attribute='tips', start=0)) }}
+            </div>
+            <div class="stat-trend">
+                <i class="fas fa-arrow-up"></i>
+                {% set total_earnings = metrics|sum(attribute='earnings', start=0) %}
+                {% if total_earnings > 0 %}
+                    {{ (metrics|sum(attribute='tips', start=0) / total_earnings * 100)|round(1) }}% of earnings
+                {% else %}
+                    0% of earnings
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Peak Hours Chart -->
+    {% if peak_hours %}
+        <div class="chart-section">
+            <h2><i class="fas fa-clock"></i> Peak Earning Hours</h2>
+            <div class="peak-hours-list">
+                {% for hour, count in peak_hours.items() %}
+                    <div class="hour-box {% if count > 2 %}peak{% endif %}">
+                        <div class="hour-time">{{ "%02d"|format(hour) }}:00</div>
+                        <div class="hour-label">{{ count }} days</div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Top Locations Chart -->
+    {% if top_locations %}
+        <div class="chart-section">
+            <h2><i class="fas fa-map-marker-alt"></i> Top Earning Locations</h2>
+            <div class="locations-list">
+                {% for location in top_locations %}
+                    <div class="location-item">
+                        <div class="location-info">
+                            <h3>{{ location.location_name or 'Unknown Location' }}</h3>
+                            <div class="location-stats">
+                                📦 {{ location.deliveries_count }} deliveries • ⭐ {{ "%.1f"|format(location.average_rating or 0) }} rating
+                            </div>
+                        </div>
+                        <div class="location-earnings">
+                            <div class="location-earnings-amount">₵{{ "%.2f"|format(location.earnings) }}</div>
+                            <div class="location-earnings-avg">
+                                {% if location.deliveries_count > 0 %}
+                                    ₵{{ "%.2f"|format(location.earnings / location.deliveries_count) }}/delivery
+                                {% else %}
+                                    ₵0.00/delivery
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Earning vs Acceptance Rate -->
+    <div class="chart-section">
+        <h2><i class="fas fa-chart-scatter"></i> Acceptance Rate Impact</h2>
+        <div class="chart-container">
+            <div class="chart-placeholder">
+                <div>
+                    <p style="margin: 0 0 1rem 0; font-weight: 600;">Correlation Chart</p>
+                    {% set avg_acceptance = (metrics|sum(attribute='acceptance_rate', start=0) / (metrics|length or 1))|round(1) %}
+                    <p style="margin: 0;">Average Acceptance Rate: {{ avg_acceptance }}%</p>
+                </div>
+            </div>
+        </div>
+        <p style="color: #64748b; font-size: 0.875rem;">
+            Maintaining a high acceptance rate helps with priority dispatch and can lead to more delivery offers
+        </p>
+    </div>
+
+    <!-- Recent Payment Statements -->
+    {% if statements %}
+        <div class="payments-section">
+            <h2><i class="fas fa-receipt"></i> Recent Payment Statements</h2>
+            <div style="overflow-x: auto;">
+                <table class="payments-table">
+                    <thead>
+                        <tr>
+                            <th>Period</th>
+                            <th>Deliveries</th>
+                            <th>Base Earnings</th>
+                            <th>Tips</th>
+                            <th>Bonuses</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for statement in statements %}
+                            <tr>
+                                <td>Week {{ statement.week_number }}, {{ statement.year }}</td>
+                                <td>{{ statement.total_deliveries }}</td>
+                                <td>₵{{ "%.2f"|format(statement.base_earnings) }}</td>
+                                <td>₵{{ "%.2f"|format(statement.tips or 0) }}</td>
+                                <td>₵{{ "%.2f"|format(statement.bonuses or 0) }}</td>
+                                <td><strong>₵{{ "%.2f"|format(statement.total_amount) }}</strong></td>
+                                <td>
+                                    <span class="payment-status {% if statement.payment_status == 'Paid' %}paid{% else %}pending{% endif %}">
+                                        {{ statement.payment_status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="#" style="color: #3b82f6; text-decoration: none; font-size: 0.875rem;">View</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% else %}
+        <div class="chart-section">
+            <div class="empty-state">
+                <i class="fas fa-chart-bar"></i>
+                <h3>No Data Available Yet</h3>
+                <p>Complete some deliveries to see your analytics</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Auto-refresh data every 5 minutes
+setInterval(() => {
+    // In production, fetch updated data via API
+    console.log('Data refresh check');
+}, 5 * 60 * 1000);
+</script>
+{% endblock %}
