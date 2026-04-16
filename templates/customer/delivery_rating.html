@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+
+{% block title %}Rate Your Delivery - Fameko{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Card -->
+            <div class="card border-0 shadow-lg">
+                <!-- Header Section -->
+                <div class="card-header bg-primary text-white border-0 p-4 text-center">
+                    <h4 class="fw-bold mb-1">
+                        <i class="fas fa-smile me-2"></i>Rate Your Experience
+                    </h4>
+                    <p class="text-white-50 mb-0">Help us improve our service</p>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Driver Info -->
+                    <div class="text-center mb-4">
+                        <div class="mb-3">
+                            <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="fas fa-user fa-2x"></i>
+                            </div>
+                        </div>
+                        <h5 class="fw-bold mb-1" id="driverName">Driver Name</h5>
+                        <p class="text-muted mb-3" id="drivervehicle">Vehicle Type • License Plate</p>
+                        <div class="text-warning mb-3">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star-half"></i>
+                            <small class="text-muted ms-2">(Existing Rating)</small>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Form -->
+                    <form id="ratingForm" onsubmit="submitRating(event)">
+                        <!-- Star Rating -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold mb-3 d-block">How would you rate this delivery?</label>
+                            <div class="text-center mb-3" style="font-size: 3.5rem; letter-spacing: 0.75rem;">
+                                <i class="fas fa-star star-rating" data-rating="1" onclick="setRating(1)" style="cursor: pointer; color: #ddd; transition: all 0.2s;"></i>
+                                <i class="fas fa-star star-rating" data-rating="2" onclick="setRating(2)" style="cursor: pointer; color: #ddd; transition: all 0.2s;"></i>
+                                <i class="fas fa-star star-rating" data-rating="3" onclick="setRating(3)" style="cursor: pointer; color: #ddd; transition: all 0.2s;"></i>
+                                <i class="fas fa-star star-rating" data-rating="4" onclick="setRating(4)" style="cursor: pointer; color: #ddd; transition: all 0.2s;"></i>
+                                <i class="fas fa-star star-rating" data-rating="5" onclick="setRating(5)" style="cursor: pointer; color: #ddd; transition: all 0.2s;"></i>
+                            </div>
+                            <p class="text-center text-muted mb-0" id="ratingText" style="height: 30px;">
+                                <span id="ratingEmoji"></span>
+                                <span id="ratingLabel"></span>
+                            </p>
+                            <input type="hidden" id="selectedRating" name="rating" required value="">
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Rating Categories -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold mb-3">Rate these aspects (optional)</label>
+                            
+                            <!-- Delivery Speed -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="small fw-bold mb-0">
+                                        <i class="fas fa-tachometer-alt me-2 text-primary"></i>Delivery Speed
+                                    </label>
+                                    <span class="badge bg-light text-dark" id="speedBadge">Not rated</span>
+                                </div>
+                                <div class="rating-pills d-flex gap-2" style="justify-content: space-between;">
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="1" onclick="setAspectRating('speed', 1)">Slow</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="2" onclick="setAspectRating('speed', 2)">Fair</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="3" onclick="setAspectRating('speed', 3)">Good</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="4" onclick="setAspectRating('speed', 4)">Very Good</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="5" onclick="setAspectRating('speed', 5)">Excellent</button>
+                                </div>
+                            </div>
+
+                            <!-- Professionalism -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="small fw-bold mb-0">
+                                        <i class="fas fa-handshake me-2 text-info"></i>Professionalism
+                                    </label>
+                                    <span class="badge bg-light text-dark" id="professionalismBadge">Not rated</span>
+                                </div>
+                                <div class="rating-pills d-flex gap-2" style="justify-content: space-between;">
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="1" onclick="setAspectRating('professionalism', 1)">Poor</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="2" onclick="setAspectRating('professionalism', 2)">Fair</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="3" onclick="setAspectRating('professionalism', 3)">Good</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="4" onclick="setAspectRating('professionalism', 4)">Very Good</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="5" onclick="setAspectRating('professionalism', 5)">Excellent</button>
+                                </div>
+                            </div>
+
+                            <!-- Vehicle Condition -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="small fw-bold mb-0">
+                                        <i class="fas fa-car me-2 text-success"></i>Vehicle Condition
+                                    </label>
+                                    <span class="badge bg-light text-dark" id="vehicleBadge">Not rated</span>
+                                </div>
+                                <div class="rating-pills d-flex gap-2" style="justify-content: space-between;">
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="1" onclick="setAspectRating('vehicle', 1)">Poor</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="2" onclick="setAspectRating('vehicle', 2)">Fair</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="3" onclick="setAspectRating('vehicle', 3)">Good</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="4" onclick="setAspectRating('vehicle', 4)">Very Good</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="5" onclick="setAspectRating('vehicle', 5)">Excellent</button>
+                                </div>
+                            </div>
+
+                            <!-- Courtesy -->
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="small fw-bold mb-0">
+                                        <i class="fas fa-heart me-2 text-danger"></i>Courtesy
+                                    </label>
+                                    <span class="badge bg-light text-dark" id="courtesyBadge">Not rated</span>
+                                </div>
+                                <div class="rating-pills d-flex gap-2" style="justify-content: space-between;">
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="1" onclick="setAspectRating('courtesy', 1)">Rude</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="2" onclick="setAspectRating('courtesy', 2)">Neutral</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="3" onclick="setAspectRating('courtesy', 3)">Good</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="4" onclick="setAspectRating('courtesy', 4)">Very Good</button>
+                                    <button type="button" class="rating-pill btn btn-sm btn-outline-secondary" data-value="5" onclick="setAspectRating('courtesy', 5)">Excellent</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Photo Upload (Optional) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold mb-2">Add Photo (optional)</label>
+                            <div class="position-relative">
+                                <input type="file" id="photoInput" class="form-control" accept="image/*" onchange="previewPhoto()">
+                                <small class="text-muted d-block mt-1">JPG, PNG (Max 5MB)</small>
+                            </div>
+                            <div id="photoPreview" class="mt-3" style="display: none;">
+                                <img id="previewImage" src="" alt="Preview" style="max-width: 100%; max-height: 200px; border-radius: 8px;">
+                                <button type="button" class="btn btn-sm btn-danger mt-2" onclick="removePhoto()">Remove Photo</button>
+                            </div>
+                        </div>
+
+                        <!-- Comments -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold mb-2">Share Your Feedback</label>
+                            <textarea class="form-control" id="comment" name="comment" placeholder="Tell us what you think about this delivery..." rows="4" maxlength="500"></textarea>
+                            <small class="text-muted d-block mt-1">
+                                <span id="charCount">0</span>/500 characters
+                            </small>
+                        </div>
+
+                        <!-- Anonymous Option -->
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="anonymousRating" name="anonymous">
+                            <label class="form-check-label" for="anonymousRating">
+                                Submit this rating anonymously
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold" id="submitBtn" disabled>
+                                <i class="fas fa-paper-plane me-2"></i>Submit Rating
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#skipModal">
+                                Skip Rating
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Delivery Summary -->
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <p class="text-muted small mb-2">
+                            <strong>Delivery ID:</strong> <span id="deliveryId">#--</span>
+                        </p>
+                        <p class="text-muted small mb-2">
+                            <strong>Date:</strong> <span id="deliveryDate">--</span>
+                        </p>
+                        <p class="text-muted small mb-0">
+                            <strong>Amount:</strong> <span id="deliveryAmount">₵0.00</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Need Help -->
+            <div class="text-center mt-4">
+                <p class="text-muted small">
+                    <i class="fas fa-question-circle me-1"></i>
+                    Having issues? <a href="/support" class="text-primary text-decoration-none">Contact Support</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Skip Confirmation Modal -->
+<div class="modal fade" id="skipModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title fw-bold">Skip Rating?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-info-circle fa-2x text-warning mb-3"></i>
+                <p class="mb-0">Your feedback helps us improve. Are you sure you want to skip?</p>
+            </div>
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Go Back</button>
+                <a href="/customer/dashboard" class="btn btn-outline-danger">Skip Anyway</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 text-center">
+            <div class="modal-body py-5">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle fa-3x text-success"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Thank You!</h5>
+                <p class="text-muted mb-4">Your rating has been submitted successfully.</p>
+                <p class="text-muted small">Redirecting you shortly...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.star-rating {
+    transition: all 0.2s ease;
+    text-shadow: 0 0 2px rgba(0,0,0,0.1);
+}
+
+.star-rating:hover,
+.star-rating.active {
+    color: #ffc107 !important;
+    text-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
+    transform: scale(1.1);
+}
+
+.rating-pill {
+    flex: 1;
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
+    transition: all 0.2s;
+}
+
+.rating-pill.active {
+    background-color: #0d6efd !important;
+    color: white !important;
+    border-color: #0d6efd !important;
+}
+
+.rating-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 111, 237, 0.2);
+}
+
+#submitBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#submitBtn:enabled {
+    cursor: pointer;
+}
+
+textarea.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+</style>
+
+<script>
+let selectedRating = 0;
+let aspectRatings = {
+    speed: 0,
+    professionalism: 0,
+    vehicle: 0,
+    courtesy: 0
+};
+
+const ratingLabels = {
+    1: { emoji: '😞', text: 'Poor - We\'ll do better' },
+    2: { emoji: '😕', text: 'Fair - Room for improvement' },
+    3: { emoji: '😐', text: 'Average - Could be better' },
+    4: { emoji: '😊', text: 'Good - Well done!' },
+    5: { emoji: '😍', text: 'Excellent - Great job!' }
+};
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadDeliveryData();
+    setupFormValidation();
+    
+    document.getElementById('comment').addEventListener('input', function() {
+        document.getElementById('charCount').textContent = this.value.length;
+    });
+});
+
+// Simulated delivery data (from API)
+async function loadDeliveryData() {
+    // Extract delivery ID from URL query params or use default
+    const urlParams = new URLSearchParams(window.location.search);
+    const deliveryId = urlParams.get('delivery_id') || 1;
+    
+    try {
+        const response = await fetch(`/customer/delivery/${deliveryId}/status`);
+        const data = await response.json();
+        
+        document.getElementById('deliveryId').textContent = '#' + deliveryId;
+        document.getElementById('deliveryDate').textContent = new Date(data.created_at).toLocaleDateString();
+        document.getElementById('deliveryAmount').textContent = '₵' + (data.total_fare || 0).toFixed(2);
+        document.getElementById('driverName').textContent = data.driver?.name || 'Driver';
+        document.getElementById('drivervehicle').textContent = 
+            (data.driver?.vehicle_type || 'Vehicle') + ' • ' + (data.driver?.vehicle_number || 'Unknown');
+    } catch (error) {
+        console.error('Error loading delivery data:', error);
+    }
+}
+
+// Set overall rating
+function setRating(rating) {
+    selectedRating = rating;
+    document.getElementById('selectedRating').value = rating;
+    
+    // Update stars
+    document.querySelectorAll('.star-rating').forEach((star, index) => {
+        if (index < rating) {
+            star.classList.add('active');
+        } else {
+            star.classList.remove('active');
+        }
+    });
+    
+    // Update label
+    const label = ratingLabels[rating];
+    document.getElementById('ratingEmoji').textContent = label.emoji;
+    document.getElementById('ratingLabel').textContent = label.text;
+    document.getElementById('ratingText').style.color = rating >= 4 ? '#28a745' : rating >= 3 ? '#ffc107' : '#dc3545';
+    
+    checkFormValidity();
+}
+
+// Set aspect rating
+function setAspectRating(aspect, value) {
+    aspectRatings[aspect] = value;
+    
+    // Update button styling
+    const buttons = document.querySelectorAll(`[onclick="setAspectRating('${aspect}', ${value})"]`);
+    buttons.forEach(btn => {
+        btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active', 'btn-primary');
+        btn.classList.remove('btn-outline-secondary');
+    });
+    
+    // Update badge
+    const badgeMap = {
+        1: 'Poor',
+        2: 'Fair',
+        3: 'Good',
+        4: 'Very Good',
+        5: 'Excellent'
+    };
+    
+    document.getElementById(aspect + 'Badge').textContent = badgeMap[value] || 'Not rated';
+    document.getElementById(aspect + 'Badge').className = 'badge bg-' + 
+        (value >= 4 ? 'success' : value >= 3 ? 'info' : 'warning') + ' text-dark';
+    
+    checkFormValidity();
+}
+
+// Preview photo
+function previewPhoto() {
+    const file = document.getElementById('photoInput').files[0];
+    if (file && file.size <= 5242880) { // 5MB
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('previewImage').src = e.target.result;
+            document.getElementById('photoPreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        alert('Please select a valid image (max 5MB)');
+    }
+}
+
+// Remove photo
+function removePhoto() {
+    document.getElementById('photoInput').value = '';
+    document.getElementById('photoPreview').style.display = 'none';
+}
+
+// Setup form validation
+function setupFormValidation() {
+    document.getElementById('ratingForm').addEventListener('input', checkFormValidity);
+}
+
+function checkFormValidity() {
+    const hasRating = selectedRating > 0;
+    const isValid = hasRating;
+    document.getElementById('submitBtn').disabled = !isValid;
+}
+
+// Submit rating
+async function submitRating(event) {
+    event.preventDefault();
+    
+    if (selectedRating === 0) {
+        alert('Please select a rating');
+        return;
+    }
+    
+    // Collect form data
+    const urlParams = new URLSearchParams(window.location.search);
+    const deliveryId = urlParams.get('delivery_id') || 1;
+    
+    const formData = new FormData();
+    formData.append('rating', selectedRating);
+    formData.append('comment', document.getElementById('comment').value);
+    formData.append('aspects', JSON.stringify(aspectRatings));
+    formData.append('anonymous', document.getElementById('anonymousRating').checked);
+    
+    if (document.getElementById('photoInput').files[0]) {
+        formData.append('photo', document.getElementById('photoInput').files[0]);
+    }
+    
+    try {
+        const response = await fetch(`/customer/delivery/${deliveryId}/rate_driver`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Show success modal
+            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+            successModal.show();
+            
+            // Redirect after 3 seconds
+            setTimeout(() => {
+                window.location.href = '/customer/dashboard';
+            }, 3000);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error submitting rating:', error);
+        alert('Failed to submit rating. Please try again.');
+    }
+}
+</script>
+{% endblock %}
