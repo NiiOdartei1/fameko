@@ -1,0 +1,603 @@
+{% extends "customer/base_customer.html" %}
+
+{% block title %}Order Details - Fameko{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-3 px-md-4" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh;">
+    <div class="container">
+        <!-- Header Section -->
+        <div class="mb-4">
+            <a href="{{ url_for('customer.dashboard') }}" class="btn btn-sm btn-link text-muted p-0 mb-2 d-inline-block">
+                <i class="fas fa-arrow-left me-1"></i>Back to Orders
+            </a>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-2">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <h1 class="mb-0" style="font-size: 2rem; font-weight: 700; color: #1f2937;">Order #{{ order.id }}</h1>
+                    <span class="badge bg-{{ 'success' if order.status == 'Completed' else 'warning' if order.status == 'Pending' else 'info' }}" style="padding: 0.5rem 0.75rem; font-size: 0.9rem;">
+                        {{ order.status }}
+                    </span>
+                    <h3 class="mb-0" style="font-weight: 700; color: #1f2937;">GHS {{ '%.2f'|format(order.total_amount or 0) }}</h3>
+                </div>
+                <div>
+                    {% if order.status not in ['Completed', 'Cancelled'] %}
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        <i class="fas fa-times me-1"></i>Cancel Order
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="text-muted mb-0" style="font-size: 0.95rem;">
+                <i class="fas fa-calendar-alt me-2"></i>
+                Created on {{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+            </p>
+        </div>
+        
+        <!-- Route Map Section -->
+        {% if order.deliveries and order.deliveries[0].pickup_lat and order.deliveries[0].dropoff_lat %}
+        <div class="card border-0 shadow-lg mb-4" style="overflow: hidden;">
+            <div class="card-header bg-white border-bottom py-3 px-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1" style="font-weight: 600; color: #1f2937;">
+                            <i class="fas fa-map me-2" style="color: #28a745;"></i>Delivery Route
+                        </h5>
+                        <small class="text-muted">Real-time route visualization</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-success" onclick="displayRoute()" title="Refresh route">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="position-relative" style="height: 500px; background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%);">
+                <div id="orderMap" style="width: 100%; height: 100%;" 
+                     data-delivery-id="{{ order.deliveries[0].id }}"
+                     data-pickup-lat="{{ order.deliveries[0].pickup_lat }}"
+                     data-pickup-lng="{{ order.deliveries[0].pickup_lng }}"
+                     data-dropoff-lat="{{ order.deliveries[0].dropoff_lat }}"
+                     data-dropoff-lng="{{ order.deliveries[0].dropoff_lng }}"></div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Key Metrics Cards -->
+        <div class="row mb-4 g-3">
+            <!-- Status Card -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <div class="card-body">
+                        <p class="mb-2 opacity-75" style="font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">Status</p>
+                        <h3 class="mb-3" style="font-weight: 700;">{{ order.status }}</h3>
+                        <small class="opacity-75">
+                            <i class="fas fa-{{ 'check-circle' if order.status == 'Completed' else 'clock' if order.status == 'Pending' else 'truck' if order.status == 'Assigned' else 'times-circle' if order.status == 'Cancelled' else 'question-circle' }} me-1"></i>
+                            {% if order.status == 'Pending' %}
+                            Awaiting driver assignment
+                            {% elif order.status == 'Assigned' %}
+                            Driver is on the way
+                            {% elif order.status == 'Completed' %}
+                            Successfully delivered
+                            {% elif order.status == 'Cancelled' %}
+                            Order was cancelled
+                            {% else %}
+                            In progress
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amount Card -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                    <div class="card-body">
+                        <p class="mb-2 opacity-75" style="font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">Total Amount</p>
+                        <h3 class="mb-3" style="font-weight: 700;">GHS {{ '%.2f'|format(order.total_amount or 0) }}</h3>
+                        <small class="opacity-75">
+                            <span class="badge" style="background: rgba(255,255,255,0.3);">{{ order.payment_status }}</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Method Card -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                    <div class="card-body">
+                        <p class="mb-2 opacity-75" style="font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">Payment</p>
+                        <h5 class="mb-3" style="font-weight: 700;">{{ order.payment_method }}</h5>
+                        <small class="opacity-75"><i class="fas fa-credit-card me-1"></i>{{ order.payment_method }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Distance Card -->
+            {% if order.deliveries %}
+            <div class="col-md-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+                    <div class="card-body">
+                        <p class="mb-2 opacity-75" style="font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">Distance</p>
+                        <h3 class="mb-3" style="font-weight: 700;">{{ order.deliveries[0].distance_km|default('N/A', true) }} <small style="font-size: 0.6em;">km</small></h3>
+                        <small class="opacity-75"><i class="fas fa-map me-1"></i>{{ order.deliveries[0].estimated_duration_minutes|default('N/A', true) }} min</small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Shipping and Delivery Information -->
+        <div class="row mb-4 g-4">
+            <!-- Shipping Address -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom py-3 px-4">
+                        <h6 class="mb-0" style="font-weight: 600; color: #1f2937;">
+                            <i class="fas fa-map-marker-alt me-2" style="color: #3b82f6;"></i>Shipping Address
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">Pickup Location</p>
+                        <p class="mb-1" style="font-weight: 500; color: #1f2937;">{{ order.shipping_address }}</p>
+                        {% if order.deliveries and order.deliveries[0].pickup_lat %}
+                        <small class="text-muted d-block mb-3">
+                            <i class="fas fa-map me-1"></i>
+                            {{ order.deliveries[0].pickup_lat|round(4) }}, {{ order.deliveries[0].pickup_lng|round(4) }}
+                        </small>
+                        {% endif %}
+                        
+                        <hr class="my-3" />
+                        
+                        {% if order.deliveries and order.deliveries[0].dropoff_location %}
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">Delivery Location</p>
+                        <p class="mb-1" style="font-weight: 500; color: #1f2937;">{{ order.deliveries[0].dropoff_location }}</p>
+                        {% if order.deliveries[0].dropoff_lat %}
+                        <small class="text-muted d-block">
+                            <i class="fas fa-map me-1"></i>
+                            {{ order.deliveries[0].dropoff_lat|round(4) }}, {{ order.deliveries[0].dropoff_lng|round(4) }}
+                        </small>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Information -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom py-3 px-4">
+                        <h6 class="mb-0" style="font-weight: 600; color: #1f2937;">
+                            <i class="fas fa-receipt me-2" style="color: #10b981;"></i>Payment Details
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <p class="mb-2 text-muted small">Payment Method</p>
+                                <p class="mb-3" style="font-weight: 600; color: #1f2937;">{{ order.payment_method }}</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="mb-2 text-muted small">Payment Status</p>
+                                <p class="mb-3">
+                                    <span class="badge bg-{{ 'success' if order.payment_status == 'Paid' else 'warning' }}">
+                                        {{ order.payment_status }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                        <hr class="my-3" />
+                        <p class="mb-2 text-muted small">Order Total</p>
+                        <h4 class="mb-0" style="color: #1f2937; font-weight: 700;">GHS {{ '%.2f'|format(order.total_amount or 0) }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delivery Details -->
+        {% if order.deliveries %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom py-3 px-4">
+                <h6 class="mb-0" style="font-weight: 600; color: #1f2937;">
+                    <i class="fas fa-truck me-2" style="color: #f59e0b;"></i>Delivery Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-4">
+                            <p class="mb-2 text-muted small text-uppercase" style="letter-spacing: 0.5px; font-weight: 600;">Distance</p>
+                            <h5 style="color: #1f2937; font-weight: 700;">{{ order.deliveries[0].distance_km|default('N/A', true) }} km</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-4">
+                            <p class="mb-2 text-muted small text-uppercase" style="letter-spacing: 0.5px; font-weight: 600;">Estimated Duration</p>
+                            <h5 style="color: #1f2937; font-weight: 700;">{{ order.deliveries[0].estimated_duration_minutes|default('N/A', true) }} min</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-4">
+                            <p class="mb-2 text-muted small text-uppercase" style="letter-spacing: 0.5px; font-weight: 600;">Assigned Driver</p>
+                            {% if order.deliveries[0].driver %}
+                            <p class="mb-0" style="color: #1f2937; font-weight: 600;">{{ order.deliveries[0].driver.full_name }}</p>
+                            <small class="text-muted">{{ order.deliveries[0].driver.phone }}</small>
+                            {% else %}
+                            <p class="mb-0 text-muted">Not yet assigned</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="mb-4">
+            <div class="d-flex gap-2 flex-wrap">
+                {% if order.status in ['Pending', 'Assigned'] %}
+                <a href="{{ url_for('customer.track_deliveries') }}" class="btn btn-primary">
+                    <i class="fas fa-map me-2"></i>Track Live Location
+                </a>
+                {% endif %}
+                <a href="{{ url_for('customer.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Order Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title font-weight-bold" id="cancelModalLabel">Cancel Order #{{ order.id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('customer.cancel_order', order_id=order.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <p class="text-muted mb-4">Please select a reason for cancellation:</p>
+                    
+                    <div class="mb-3">
+                        <label for="cancel_reason" class="form-label fw-600">Cancellation Reason *</label>
+                        <select class="form-select" id="cancel_reason" name="cancel_reason" required>
+                            <option value="">-- Select a reason --</option>
+                            <option value="Found alternative">Found alternative delivery</option>
+                            <option value="Incorrect location">Incorrect pickup/dropoff location</option>
+                            <option value="No longer needed">Item no longer needed</option>
+                            <option value="Taken too long">Taking too long</option>
+                            <option value="Cost too high">Cost is too high</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="cancel_notes" class="form-label">Additional Notes (optional)</label>
+                        <textarea class="form-control" id="cancel_notes" name="cancel_notes" rows="3" placeholder="Please tell us more..."></textarea>
+                    </div>
+
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> Once cancelled, this order cannot be recovered. You may need to contact support if you change your mind.
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Order</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Confirm Cancellation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --primary: #3b82f6;
+        --success: #10b981;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+    }
+
+    .form-select, .form-control {
+        border-radius: 0.5rem;
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        font-size: 0.95rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-select:focus, .form-control:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    #orderMap {
+        border-radius: 0 0 8px 8px;
+    }
+
+    .maplibregl-popup-content {
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn {
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+    }
+</style>
+
+<!-- MapLibre GL -->
+<link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+
+<script>
+let orderMap;
+let orderStartMarker;
+let orderEndMarker;
+let orderRouteLayer;
+let orderRouteSource;
+
+function getDeliveryCoordinates() {
+    const mapElement = document.getElementById('orderMap');
+    if (!mapElement) return null;
+    return {
+        delivery_id: parseInt(mapElement.getAttribute('data-delivery-id')),
+        pickup_lat: parseFloat(mapElement.getAttribute('data-pickup-lat')),
+        pickup_lng: parseFloat(mapElement.getAttribute('data-pickup-lng')),
+        dropoff_lat: parseFloat(mapElement.getAttribute('data-dropoff-lat')),
+        dropoff_lng: parseFloat(mapElement.getAttribute('data-dropoff-lng'))
+    };
+}
+
+function initOrderMap() {
+    const mapElement = document.getElementById('orderMap');
+    if (!mapElement) return;
+
+    const delivery = getDeliveryCoordinates();
+    let initialCenter = [-0.1869, 5.6037];
+    let initialZoom = 12;
+
+    if (delivery && delivery.pickup_lat && delivery.pickup_lng) {
+        initialCenter = [delivery.pickup_lng, delivery.pickup_lat];
+    }
+
+    orderMap = new maplibregl.Map({
+        container: 'orderMap',
+        style: {
+            version: 8,
+            sources: {
+                'osm': {
+                    type: 'raster',
+                    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                    tileSize: 256
+                }
+            },
+            layers: [{
+                id: 'osm',
+                type: 'raster',
+                source: 'osm'
+            }]
+        },
+        center: initialCenter,
+        zoom: initialZoom
+    });
+
+    orderMap.addControl(new maplibregl.NavigationControl(), 'top-left');
+    orderMap.on('load', function() {
+        displayRoute();
+    });
+}
+
+async function displayRoute() {
+    if (!orderMap || !orderMap.isStyleLoaded()) {
+        setTimeout(displayRoute, 500);
+        return;
+    }
+
+    const delivery = getDeliveryCoordinates();
+    console.log('[ROUTE] Delivery coordinates:', delivery);
+    
+    if (!delivery || !delivery.pickup_lat || !delivery.pickup_lng || !delivery.dropoff_lat || !delivery.dropoff_lng) {
+        console.error('[ROUTE] Missing coordinates:', delivery);
+        return;
+    }
+
+    clearExistingRoute();
+    addPickupDropoffMarkers(delivery);
+
+    try {
+        // Use the same /route endpoint as create_order for consistency
+        // Backend expects: pickup_lat, pickup_lng, dropoff_lat, dropoff_lng
+        const requestBody = {
+            pickup_lat: parseFloat(delivery.pickup_lat),
+            pickup_lng: parseFloat(delivery.pickup_lng),
+            dropoff_lat: parseFloat(delivery.dropoff_lat),
+            dropoff_lng: parseFloat(delivery.dropoff_lng)
+        };
+        
+        console.log('[ROUTE] Sending request body to /route:', requestBody);
+        
+        const routeResponse = await fetch('/route', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!routeResponse.ok) {
+            const errorData = await routeResponse.json().catch(() => ({}));
+            console.error('[ROUTE] Server error response:', errorData);
+            throw new Error(errorData.error || `HTTP ${routeResponse.status}`);
+        }
+
+        const routeData = await routeResponse.json();
+        console.log('[ROUTE] Response from /route:', routeData);
+        
+        if (routeData.route_coords && Array.isArray(routeData.route_coords) && routeData.route_coords.length > 0) {
+            drawRouteOnMap(routeData.route_coords);
+        } else {
+            throw new Error('Invalid route response: ' + JSON.stringify(routeData));
+        }
+    } catch (e) {
+        console.error('[ROUTE] Route calculation error:', e.message);
+    }
+}
+
+function clearExistingRoute() {
+    if (orderRouteLayer && orderMap.getLayer('order-route-layer')) {
+        orderMap.removeLayer('order-route-layer');
+    }
+    if (orderRouteSource && orderMap.getSource('order-route-source')) {
+        orderMap.removeSource('order-route-source');
+    }
+    if (orderStartMarker) orderStartMarker.remove();
+    if (orderEndMarker) orderEndMarker.remove();
+}
+
+function addPickupDropoffMarkers(delivery) {
+    const pickupPopupContent = document.createElement('div');
+    pickupPopupContent.innerHTML = `<strong style="color: #FF6B35;">📍 Pickup</strong><br><small>Pickup Location</small>`;
+    
+    const pickupPopup = new maplibregl.Popup({ offset: 25 }).setDOMContent(pickupPopupContent);
+    
+    orderStartMarker = new maplibregl.Marker({color: '#FF6B35'})
+        .setLngLat([delivery.pickup_lng, delivery.pickup_lat])
+        .setPopup(pickupPopup)
+        .addTo(orderMap);
+
+    const dropoffPopupContent = document.createElement('div');
+    dropoffPopupContent.innerHTML = `<strong style="color: #28a745;">🎯 Delivery</strong><br><small>Dropoff Location</small>`;
+    
+    const dropoffPopup = new maplibregl.Popup({ offset: 25 }).setDOMContent(dropoffPopupContent);
+    
+    orderEndMarker = new maplibregl.Marker({color: '#28a745'})
+        .setLngLat([delivery.dropoff_lng, delivery.dropoff_lat])
+        .setPopup(dropoffPopup)
+        .addTo(orderMap);
+}
+
+function drawRouteOnMap(waypoints) {
+    if (!orderMap) return;
+
+    console.log('[ROUTE] drawRouteOnMap called with waypoints:', waypoints);
+    
+    if (!waypoints || !Array.isArray(waypoints) || waypoints.length < 2) {
+        console.error('[ROUTE] Invalid waypoints:', waypoints);
+        return;
+    }
+    
+    // Validate coordinates
+    for (let i = 0; i < waypoints.length; i++) {
+        const point = waypoints[i];
+        if (!Array.isArray(point) || point.length !== 2 || 
+            isNaN(parseFloat(point[0])) || isNaN(parseFloat(point[1]))) {
+            console.error('[ROUTE] Invalid coordinate at index', i, ':', point);
+            return;
+        }
+    }
+    
+    if (!orderMap.isStyleLoaded()) {
+        console.log('[ROUTE] Map style not loaded yet, waiting...');
+        orderMap.once('style.load', () => displayRouteOnMap(waypoints));
+        return;
+    }
+    
+    // Remove existing route line if present
+    if (orderMap.getSource('order-route-source')) {
+        console.log('[ROUTE] Removing existing route');
+        orderMap.removeLayer('order-route-layer');
+        orderMap.removeSource('order-route-source');
+    }
+    
+    // Create GeoJSON LineString from waypoints
+    // Route service returns coordinates in [lng, lat] format, which is what MapLibre GL needs
+    const coordinates = waypoints;
+    console.log('[ROUTE] Using coordinates:', coordinates);
+    
+    const geojson = {
+        type: 'Feature',
+        geometry: {
+            type: 'LineString',
+            coordinates: coordinates
+        }
+    };
+    
+    console.log('[ROUTE] Created GeoJSON:', geojson);
+    
+    try {
+        // Add source
+        orderMap.addSource('order-route-source', {
+            type: 'geojson',
+            data: geojson
+        });
+        console.log('[ROUTE] Added route source successfully');
+        
+        // Add layer for the route line (solid green for real routes)
+        orderMap.addLayer({
+            id: 'order-route-layer',
+            type: 'line',
+            source: 'order-route-source',
+            layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            paint: {
+                'line-color': '#10b981',
+                'line-width': 5,
+                'line-opacity': 0.8
+            }
+        });
+        console.log('[ROUTE] Added route layer successfully');
+        
+        // Force a map render
+        orderMap.triggerRepaint();
+        
+        // Re-add markers to ensure they're on top
+        const delivery = getDeliveryCoordinates();
+        if (orderStartMarker) orderStartMarker.remove();
+        if (orderEndMarker) orderEndMarker.remove();
+        addPickupDropoffMarkers(delivery);
+        
+        // Fit bounds to route
+        const bounds = new maplibregl.LngLatBounds();
+        coordinates.forEach(coord => bounds.extend(coord));
+        orderMap.fitBounds(bounds, { padding: 50 });
+        
+    } catch (error) {
+        console.error('[ROUTE] Error adding route to map:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('orderMap')) {
+        initOrderMap();
+    }
+});
+</script>
+
+{% endblock %}
