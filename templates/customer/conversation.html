@@ -1,0 +1,86 @@
+{% extends "customer/base_customer.html" %}
+
+{% block title %}Chat — Delivery #{{ delivery.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-1 pt-1">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <strong>Chat with Driver</strong>
+        <div class="small text-muted">{{ delivery.driver.full_name if delivery.driver else 'Driver' }}</div>
+      </div>
+      <div>
+        <a href="{{ url_for('customer.track_delivery', delivery_id=delivery.id) }}" class="btn btn-outline-secondary btn-sm">Back to tracking</a>
+      </div>
+    </div>
+    <div class="card-body" style="height:60vh; overflow:auto;" id="messagesContainer"></div>
+    <div class="card-footer d-flex gap-2">
+      <input id="chatInput" type="text" class="form-control" placeholder="Type a message...">
+      <button id="chatSend" class="btn btn-primary">Send</button>
+    </div>
+  </div>
+</div>
+
+<input type="hidden" id="chat-server-data" data-conv-id="{{ conv.id }}" data-delivery-id="{{ delivery.id }}" data-driver-id="{{ conv.driver_id or '' }}">
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const sd = document.getElementById('chat-server-data');
+  const convId = sd?.dataset?.convId;
+  const messagesContainer = document.getElementById('messagesContainer');
+  const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('chatSend');
+
+  function appendMsg(m){
+    const el = document.createElement('div');
+    el.className = m.sender_type === 'customer' ? 'text-end mb-2' : 'text-start mb-2';
+    el.innerHTML = `<div style="display:inline-block; max-width:80%; padding:8px 12px; border-radius:12px; background:${m.sender_type==='customer'?'#e6ffed':'#f1f1f1'};">${m.body}</div><div class="small text-muted">${new Date(m.created_at).toLocaleString()}</div>`;
+    messagesContainer.appendChild(el);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  async function loadMessages(){
+    try {
+      const res = await fetch(`/customer/conversation/${convId}/messages`);
+      if(!res.ok) return;
+      const data = await res.json();
+      if(!data.success) return;
+      messagesContainer.innerHTML = '';
+      data.messages.forEach(appendMsg);
+    } catch(e){ console.error(e); }
+  }
+
+  async function sendMessage(){
+    const text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    try {
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      const res = await fetch(`/customer/conversation/${convId}/send`, { method:'POST', headers:{'Content-Type':'application/json', 'X-CSRFToken': csrf, 'X-CSRF-Token': csrf}, body:JSON.stringify({body:text})});
+      if(!res.ok) { console.error('send failed'); return; }
+      const data = await res.json();
+      if(data && data.success) { appendMsg({sender_type:'customer', body:text, created_at: new Date().toISOString()}); }
+    } catch(e){ console.error(e); }
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendMessage(); });
+
+  // Listen for socket-driven events dispatched by base template
+  window.addEventListener('new_message', (e)=>{
+    const p = e.detail || e;
+    if(!p || Number(p.conversation_id) !== Number(convId)) return;
+    appendMsg(p);
+  });
+
+  // Fallback polling: refresh messages every 3 seconds if websocket not working
+  setInterval(function () {
+    loadMessages();
+  }, 3000);
+
+  loadMessages();
+});
+</script>
+
+{% endblock %}

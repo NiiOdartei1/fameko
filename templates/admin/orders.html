@@ -1,0 +1,152 @@
+{% extends "admin/base_admin.html" %}
+
+{% block page_title %}
+    <i class="fas fa-box"></i> Orders Management
+{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-sm btn-primary" onclick="refreshOrders()">
+    <i class="fas fa-sync"></i> Refresh
+</button>
+{% endblock %}
+
+{% block main_content %}
+<style>
+    .status-badge {
+        display: inline-block;
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .status-pending { background-color: #fef3c7; color: #92400e; }
+    .status-processing { background-color: #dbeafe; color: #1e40af; }
+    .status-completed { background-color: #d1fae5; color: #065f46; }
+    .status-cancelled { background-color: #fee2e2; color: #7f1d1d; }
+
+    .payment-badge {
+        display: inline-block;
+        padding: 0.25rem 0.625rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .payment-paid { background-color: #d1fae5; color: #065f46; }
+    .payment-pending { background-color: #fef3c7; color: #92400e; }
+    .payment-failed { background-color: #fee2e2; color: #7f1d1d; }
+
+    tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .no-data-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #94a3b8;
+    }
+
+    .no-data-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: block;
+        opacity: 0.5;
+    }
+</style>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">All Orders</h5>
+        <small class="text-muted" id="orderCount">Loading...</small>
+    </div>
+    <div class="card-body p-0">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div style="padding: 1.5rem;">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="ordersTable">
+                <thead style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                    <tr>
+                        <th style="color: #64748b; font-weight: 600;">Order ID</th>
+                        <th style="color: #64748b; font-weight: 600;">Customer</th>
+                        <th style="color: #64748b; font-weight: 600;">Amount</th>
+                        <th style="color: #64748b; font-weight: 600;">Status</th>
+                        <th style="color: #64748b; font-weight: 600;">Payment</th>
+                        <th style="color: #64748b; font-weight: 600;">Items</th>
+                        <th style="color: #64748b; font-weight: 600;">Created</th>
+                        <th style="color: #64748b; font-weight: 600;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if orders %}
+                        {% for order in orders %}
+                        <tr>
+                            <td>
+                                <strong>#{{ order.id }}</strong>
+                            </td>
+                            <td>
+                                <small>{{ order.customer.name if order.customer else 'Unknown' }}</small>
+                            </td>
+                            <td>
+                                <strong>${{ "%.2f"|format(order.total_amount or 0) }}</strong>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
+                            </td>
+                            <td>
+                                <span class="payment-badge payment-{{ order.payment_status|lower }}">{{ order.payment_status }}</span>
+                            </td>
+                            <td>
+                                <small>{{ order.items|length }} item(s)</small>
+                            </td>
+                            <td>
+                                <small>{{ order.created_at.strftime('%m/%d/%Y') if order.created_at else 'N/A' }}</small>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin.order_details', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="no-data-state">
+                                    <i class="fas fa-inbox"></i>
+                                    <p class="mt-3">No orders found</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const orderCount = document.getElementById('orderCount');
+    const rowCount = document.querySelectorAll('#ordersTable tbody tr').length;
+    if (rowCount > 0 && !document.querySelector('#ordersTable tbody tr td[colspan]')) {
+        orderCount.textContent = rowCount + ' order' + (rowCount !== 1 ? 's' : '');
+    } else {
+        orderCount.textContent = '0 orders';
+    }
+});
+</script>
+{% endblock %}

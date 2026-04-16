@@ -1,0 +1,96 @@
+{% extends "customer/base_customer.html" %}
+
+{% block title %}Track Deliveries{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Track Your Deliveries</h2>
+        <span class="badge bg-primary">{{ active_deliveries|length }} Active</span>
+    </div>
+    <hr>
+
+    {% if deliveries %}
+        {% set active_deliveries = deliveries | rejectattr("status", "equalto", "Cancelled") %}
+        <div class="row">
+            {% for delivery in active_deliveries %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Delivery #{{ delivery.id }}</h5>
+                            <span class="badge bg-{{ 'warning' if delivery.status == 'Pending' else 'info' if delivery.status in ['Assigned', 'In Transit'] else 'success' }}">
+                                {{ delivery.status }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <small class="text-muted">Pickup Location</small>
+                            <p class="mb-0"><i class="fas fa-location-dot text-danger me-2"></i>{{ delivery.pickup_location or 'N/A' }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Dropoff Location</small>
+                            <p class="mb-0"><i class="fas fa-map-pin text-success me-2"></i>{{ delivery.dropoff_location or 'N/A' }}</p>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Distance</small>
+                                <strong>{{ delivery.distance_km or 'N/A' }} km</strong>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Est. Duration</small>
+                                <strong>{{ delivery.estimated_duration_minutes or 'N/A' }} min</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light">
+                        <a href="{{ url_for('customer.track_delivery', delivery_id=delivery.id) }}" class="btn btn-sm btn-primary w-100">
+                            <i class="fas fa-map me-2"></i>View Details & Map
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>No Active Deliveries</strong>
+            <p class="mb-0 mt-2">You don't have any active deliveries at the moment. Create a new order to get started!</p>
+            <a href="{{ url_for('customer.create_order_page') }}" class="btn btn-primary btn-sm mt-3">
+                <i class="fas fa-plus-circle me-2"></i>Create New Order
+            </a>
+        </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{{ url_for('customer.dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 1rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+    }
+    
+    .card-header {
+        border-bottom: 1px solid #e0e0e0;
+        border-radius: 1rem 1rem 0 0;
+    }
+    
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+</style>
+{% endblock %}
