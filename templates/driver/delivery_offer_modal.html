@@ -1,0 +1,653 @@
+<!-- Delivery Offer Modal - Classic Bolt/Uber Style -->
+<div class="modal fade" id="deliveryOfferModal" tabindex="-1" backdrop="static" keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <!-- Header with Timer -->
+            <div class="modal-header bg-success text-white border-0 py-3 px-4">
+                <div class="w-100">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="modal-title fw-bold mb-0">
+                            <i class="fas fa-gift me-2"></i>New Delivery
+                        </h5>
+                        <div class="bg-white text-success rounded-pill px-3 py-1 fw-bold">
+                            <span id="timerSeconds">60</span>s
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body - Earnings First (like Bolt/Uber) -->
+            <div class="modal-body p-4">
+                <!-- Earnings - Most Prominent -->
+                <div class="text-center mb-4">
+                    <p class="text-muted small mb-1">YOUR EARNINGS</p>
+                    <h2 class="text-success fw-bold mb-0">₵<span id="offerEarnings">--</span></h2>
+                </div>
+
+                <!-- Route - Simple Pickup to Dropoff -->
+                <div class="mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-3" style="width: 24px; height: 24px; font-size: 12px;">A</div>
+                        <span id="offerPickupLocation" class="fw-medium text-truncate">Loading...</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center me-3" style="width: 24px; height: 24px; font-size: 12px;">B</div>
+                        <span id="offerDropoffLocation" class="fw-medium text-truncate">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Distance & Duration -->
+                <div class="d-flex justify-content-between text-muted small mb-3">
+                    <span><i class="fas fa-road me-1"></i> <span id="totalDistance">--</span> km</span>
+                    <span><i class="fas fa-clock me-1"></i> <span id="offerDuration">--</span> min</span>
+                </div>
+
+                <!-- Trip Info -->
+                <div class="bg-light rounded p-3 mb-0">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small">Base Fare</span>
+                        <span class="fw-medium">₵<span id="offerBaseFare">--</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer - Accept/Decline -->
+            <div class="modal-footer border-0 p-3">
+                <button type="button" class="btn btn-lg btn-outline-secondary flex-grow-1 me-2" onclick="declineDeliveryOffer()">
+                    <i class="fas fa-times me-2"></i>Decline
+                </button>
+                <button type="button" class="btn btn-lg btn-success flex-grow-1" onclick="acceptDeliveryOffer()">
+                    <i class="fas fa-check me-2"></i>Accept
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+</style>
+
+<script>
+let currentOfferData = null;
+let offerExpirationTime = null;
+let offerTimerInterval = null;
+
+// Initialize offer modal 
+function showDeliveryOfferModal(offerData) {
+    currentOfferData = offerData;
+    
+    // Set expiration time (60 seconds from now)
+    offerExpirationTime = Date.now() + (60 * 1000);
+    
+    // Populate modal with data - use correct element IDs with null checks
+    const pickupEl = document.getElementById('offerPickupLocation');
+    const dropoffEl = document.getElementById('offerDropoffLocation');
+    const distanceEl = document.getElementById('totalDistance');
+    const durationEl = document.getElementById('offerDuration');
+    const baseFareEl = document.getElementById('offerBaseFare');
+    const earningsEl = document.getElementById('offerEarnings');
+    const timerEl = document.getElementById('timerSeconds');
+    
+    if (pickupEl) pickupEl.textContent = offerData.pickup_location || 'Unknown';
+    if (dropoffEl) dropoffEl.textContent = offerData.dropoff_location || 'Unknown';
+    if (distanceEl) distanceEl.textContent = (offerData.distance_km || 0).toFixed(1);
+    if (durationEl) durationEl.textContent = offerData.estimated_duration_minutes || '--';
+    if (baseFareEl) baseFareEl.textContent = (offerData.estimated_fare || 0).toFixed(2);
+    if (earningsEl) earningsEl.textContent = (offerData.driver_estimated_earnings || 0).toFixed(2);
+    if (timerEl) timerEl.textContent = '60';
+    
+    // Also update map.html modal elements if they exist
+    const mapPickupEl = document.getElementById('offerPickup');
+    const mapDropoffEl = document.getElementById('offerDropoff');
+    const mapDistanceEl = document.getElementById('offerDistance');
+    const mapDurationEl = document.getElementById('offerDuration');
+    const mapEarningsEl = document.getElementById('offerEarnings');
+    if (mapPickupEl) mapPickupEl.textContent = offerData.pickup_location || 'Unknown';
+    if (mapDropoffEl) mapDropoffEl.textContent = offerData.dropoff_location || 'Unknown';
+    if (mapDistanceEl) mapDistanceEl.textContent = (offerData.distance_km || 0).toFixed(1);
+    if (mapDurationEl) mapDurationEl.textContent = offerData.estimated_duration_minutes || '--';
+    if (mapEarningsEl) mapEarningsEl.textContent = (offerData.driver_estimated_earnings || 0).toFixed(2);
+    
+    // Show modal
+    const modalEl = document.getElementById('deliveryOfferModal');
+    if (!modalEl) {
+        console.error('Modal element not found');
+        return;
+    }
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    
+    // Start looping notification sound (will fallback to beeps if autoplay blocked)
+    startOfferSoundLoop();
+
+    // ALSO show system notification if permitted
+    if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+            const notification = new Notification('New Delivery Offer!', {
+                tag: 'delivery-offer',
+                requireInteraction: true,
+                silent: true
+            });
+            notification.onclick = () => { window.focus(); notification.close(); };
+            console.log('✓ System notification shown');
+        } catch (e) {
+            console.log('Notification failed:', e);
+        }
+    }
+    
+    // Start timer
+    startOfferTimer();
+}
+
+// Global audio context and notification setup
+let globalAudioCtx = null;
+let audioReady = false;
+let notificationBuffer = null;
+let notificationPermissionRequested = false;
+// Looping offer audio controls
+let offerAudio = null;
+let offerBeepInterval = null;
+// Audio asset URLs
+const REQUEST_AUDIO_URL = '/static/sounds/mixkit-clear-announce-tones-2861.wav';
+const ARRIVAL_AUDIO_URL = '/static/sounds/universfield-new-notification-022-370046.mp3';
+
+// Request notification permission on page load (first touch)
+(function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+            console.log('Notification permission:', permission);
+            if (permission === 'granted') {
+                console.log('✓ Notifications enabled - delivery alerts will show even in background');
+            }
+        });
+    }
+})();
+
+// Initialize audio context for fallback
+(function initializeAudioContext() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        globalAudioCtx = new AudioContext();
+        
+        if (globalAudioCtx.state === 'suspended') {
+            // Try to resume - may fail without user interaction
+            globalAudioCtx.resume().catch(() => {
+                console.log('AudioContext resume deferred - will retry on first notification');
+            });
+        }
+        
+        console.log('AudioContext initialized, state:', globalAudioCtx.state);
+        audioReady = true;
+        
+        // Fetch and decode audio
+        fetch('/static/sounds/mixkit-clear-announce-tones-2861.wav')
+            .then(response => response.arrayBuffer())
+            .then(arrayBuffer => {
+                if (globalAudioCtx) {
+                    return globalAudioCtx.decodeAudioData(arrayBuffer);
+                }
+            })
+            .then(audioBuffer => {
+                notificationBuffer = audioBuffer;
+                console.log('Notification sound loaded into buffer');
+            })
+            .catch(e => console.log('Could not load notification sound:', e));
+            
+    } catch (e) {
+        console.log('Could not create audio context:', e);
+    }
+})();
+
+// Track user interaction to enable audio if needed
+document.addEventListener('click', function resumeAudioOnClick() {
+    if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume().catch(() => {});
+        console.log('AudioContext resumed after user interaction');
+    }
+    
+    // Mark audio as enabled for this session
+    if (!audioReady) {
+        audioReady = true;
+        sessionStorage.setItem('audioEnabled', 'true');
+        console.log('Audio enabled for this session');
+        
+        // Button stays visible for persistent audio control
+    }
+
+    // Try to resume looping offer audio if it's paused
+    try {
+        if (offerAudio && offerAudio.paused) {
+            offerAudio.play().catch(() => {});
+        }
+    } catch (e) { /* ignore */ }
+}, { once: false });
+
+// Check if audio was already enabled in this session
+(function checkAudioSession() {
+    if (sessionStorage.getItem('audioEnabled') === 'true') {
+        audioReady = true;
+        console.log('Audio was already enabled in this session');
+        
+        // Button stays visible for persistent audio control
+        
+        // Resume audio context if suspended
+        if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+            globalAudioCtx.resume().catch(() => {});
+        }
+    }
+})();
+
+// Play notification - always play audio from sounds folder, plus system notification if permitted
+function playNotificationSound() {
+    // ALWAYS play the audio file from sounds folder (primary notification sound)
+    playAudioFromFile();
+    
+    // ALSO show system notification if permitted (secondary visual alert)
+    if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+            const notification = new Notification('New Delivery Offer!', {
+                tag: 'delivery-offer',
+                requireInteraction: true,
+                silent: true  // Don't play system sound, we already play our own
+            });
+            
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+            
+            console.log('✓ System notification shown');
+        } catch (e) {
+            console.log('Notification failed:', e);
+        }
+    }
+}
+
+// Play audio file from sounds folder
+function playAudioFromFile(url) {
+    // Try HTML5 Audio with provided URL or the default request sound
+    const audioUrl = url || REQUEST_AUDIO_URL;
+    const audio = new Audio(audioUrl);
+    audio.volume = 1.0;
+    audio.play().then(() => {
+        console.log('✓ Audio playing from sounds folder:', audioUrl);
+    }).catch(e => {
+        console.log('Audio file failed:', e.message);
+        // Fallback to generated beep
+        playBeepFallback();
+    });
+}
+
+// Fallback beep using Web Audio API
+function playBeepFallback() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+        
+        // Try to resume if suspended
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+        
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        const now = ctx.currentTime;
+        
+        // Three loud beeps
+        osc1.frequency.setValueAtTime(880, now);
+        osc2.frequency.setValueAtTime(1100, now);
+        gainNode.gain.setValueAtTime(1.0, now);
+        gainNode.gain.linearRampToValueAtTime(1.0, now + 0.1);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.15);
+        
+        osc1.frequency.setValueAtTime(880, now + 0.2);
+        osc2.frequency.setValueAtTime(1100, now + 0.2);
+        gainNode.gain.setValueAtTime(0, now + 0.2);
+        gainNode.gain.linearRampToValueAtTime(1.0, now + 0.22);
+        gainNode.gain.linearRampToValueAtTime(1.0, now + 0.32);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.37);
+        
+        osc1.frequency.setValueAtTime(1100, now + 0.42);
+        osc2.frequency.setValueAtTime(1400, now + 0.42);
+        gainNode.gain.setValueAtTime(0, now + 0.42);
+        gainNode.gain.linearRampToValueAtTime(1.0, now + 0.44);
+        gainNode.gain.linearRampToValueAtTime(1.0, now + 0.54);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
+        
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.65);
+        osc2.stop(now + 0.65);
+        
+        console.log('✓ Playing fallback beep');
+    } catch (e) {
+        console.log('Fallback beep error:', e);
+    }
+}
+
+function playOfferSound() {
+    playNotificationSound();
+}
+
+// Start looping offer audio; falls back to periodic beep if autoplay blocked
+function startOfferSoundLoop() {
+    if (offerAudio || offerBeepInterval) return;
+    const audioUrl = REQUEST_AUDIO_URL;
+    try {
+        offerAudio = new Audio(audioUrl);
+        offerAudio.loop = true;
+        offerAudio.volume = 1.0;
+        const p = offerAudio.play();
+        if (p !== undefined) {
+            p.then(() => {
+                console.log('Offer audio playing in loop');
+            }).catch(err => {
+                console.log('Offer audio play failed, starting beep fallback:', err);
+                startOfferBeepFallback();
+            });
+        }
+    } catch (e) {
+        console.log('Error starting offer audio, using beep fallback:', e);
+        startOfferBeepFallback();
+    }
+}
+
+function startOfferBeepFallback() {
+    if (offerBeepInterval) return;
+    try { playBeepFallback(); } catch (e) { }
+    offerBeepInterval = setInterval(() => {
+        try { playBeepFallback(); } catch (e) { }
+    }, 1500);
+}
+
+function stopOfferSoundLoop() {
+    try {
+        if (offerAudio) {
+            offerAudio.pause();
+            offerAudio.currentTime = 0;
+            offerAudio = null;
+        }
+    } catch (e) {}
+    if (offerBeepInterval) {
+        clearInterval(offerBeepInterval);
+        offerBeepInterval = null;
+    }
+}
+
+// Play arrival notification (one-shot) and ensure offer loop is stopped
+function playArrivalSound() {
+    // stop any request looping audio first
+    stopOfferSoundLoop();
+    try {
+        const audio = new Audio(ARRIVAL_AUDIO_URL);
+        audio.volume = 1.0;
+        audio.play().then(() => {
+            console.log('✓ Arrival audio played');
+        }).catch(err => {
+            console.log('Arrival audio play failed, fallback to beep:', err);
+            playBeepFallback();
+        });
+    } catch (e) {
+        console.log('Arrival audio error, fallback to beep:', e);
+        playBeepFallback();
+    }
+}
+// Expose globally so other scripts can trigger arrival sound
+window.playArrivalSound = playArrivalSound;
+
+// Enable sound/notification manually (in case user disabled permission)
+function enableSound() {
+    try {
+        // Resume audio context if suspended (user gesture allows this)
+        if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+            globalAudioCtx.resume().then(() => {
+                console.log('✓ AudioContext resumed by user via "Enable Sound" button');
+            }).catch(e => {
+                console.log('Could not resume AudioContext:', e);
+            });
+        }
+        
+        // Request notification permission if not already granted
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+                console.log('Notification permission:', permission);
+                if (permission === 'granted') {
+                    console.log('✓ Notifications enabled');
+                    showNotification('success', 'Notifications Enabled', 'You will now receive alerts for delivery offers.');
+                }
+            });
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+            showNotification('success', 'Ready!', 'Sound and notifications are ready for delivery offers.');
+        } else {
+            showNotification('warning', 'Notifications Denied', 'Please enable notifications in your browser settings to receive alerts.');
+        }
+        
+        // DO NOT HIDE THE BUTTON - keep it visible for persistent audio control
+    } catch (e) {
+        console.log('Could not manage notifications:', e);
+    }
+}
+
+// Timer countdown logic
+function startOfferTimer() {
+    if (offerTimerInterval) clearInterval(offerTimerInterval);
+    
+    offerTimerInterval = setInterval(() => {
+        const now = Date.now();
+        const timeRemaining = offerExpirationTime - now;
+        
+        if (timeRemaining <= 0) {
+            clearInterval(offerTimerInterval);
+            handleOfferExpired();
+            return;
+        }
+        
+        const secondsRemaining = Math.ceil(timeRemaining / 1000);
+        
+        // Update timer display
+        const timerEl = document.getElementById('timerSeconds');
+        if (timerEl) {
+            timerEl.textContent = secondsRemaining;
+        }
+    }, 1000);
+}
+
+// Accept offer
+async function acceptDeliveryOffer() {
+    try {
+        if (!currentOfferData) {
+            console.error('No current offer data');
+            showNotification('error', 'Error', 'No delivery selected.');
+            return;
+        }
+        
+        // Validate request_id exists
+        if (!currentOfferData.request_id || currentOfferData.request_id === null) {
+            console.error('Missing request_id:', currentOfferData);
+            showNotification('error', 'Error', 'Cannot accept this delivery - missing request ID. Please refresh and try again.');
+            return;
+        }
+        
+        // Stop offer audio immediately on user action
+        stopOfferSoundLoop();
+        console.log('Accepting delivery request:', currentOfferData.request_id);
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch(`/driver/requests/${currentOfferData.request_id}/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Accept response error:', response.status, errorText);
+            showNotification('error', 'Error', `Server error (${response.status}). Please try again.`);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Stop looping audio
+            stopOfferSoundLoop();
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deliveryOfferModal'));
+            if (modal) modal.hide();
+            clearInterval(offerTimerInterval);
+
+            // Show success notification
+            showNotification('success', 'Delivery Accepted!', `You've accepted delivery #${data.delivery_id}. Head to pickup location.`);
+            
+            // Refresh requests list
+            if (typeof fetchDeliveryRequests === 'function') {
+                console.log('Refreshing delivery requests...');
+                fetchDeliveryRequests();
+            }
+            
+            // Redirect to delivery map
+            setTimeout(() => {
+                console.log('Redirecting to delivery map...');
+                window.location.href = `/driver/map?delivery_id=${data.delivery_id}`;
+            }, 1500);
+        } else {
+            console.error('Accept failed:', data);
+            showNotification('error', 'Failed to Accept', data.error || 'Could not accept delivery. Try again.');
+        }
+    } catch (error) {
+        console.error('Error accepting offer:', error);
+        showNotification('error', 'Error', `Network error: ${error.message}. Please try again.`);
+    }
+}
+
+// Decline offer
+async function declineDeliveryOffer() {
+    try {
+        if (!currentOfferData) {
+            console.error('No current offer data');
+            showNotification('error', 'Error', 'No delivery selected.');
+            return;
+        }
+        
+        // Validate request_id exists
+        if (!currentOfferData.request_id || currentOfferData.request_id === null) {
+            console.error('Missing request_id:', currentOfferData);
+            showNotification('error', 'Error', 'Cannot decline this delivery - missing request ID. Please refresh and try again.');
+            return;
+        }
+        
+        // Ask for reason
+        const reason = prompt('Why are you declining this delivery?', 'Too far');
+        if (!reason) {
+            console.log('Decline cancelled by user');
+            return;
+        }
+        
+        // Stop offer audio immediately on user action
+        stopOfferSoundLoop();
+        console.log('Declining delivery request:', currentOfferData.request_id, 'Reason:', reason);
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch(`/driver/requests/${currentOfferData.request_id}/decline`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ reason: reason })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Decline response error:', response.status, errorText);
+            showNotification('error', 'Error', `Server error (${response.status}). Please try again.`);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Stop looping audio
+            stopOfferSoundLoop();
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deliveryOfferModal'));
+            if (modal) modal.hide();
+            clearInterval(offerTimerInterval);
+            showNotification('info', 'Declined', 'This delivery has been declined. We\'ll send you other offers.');
+            
+            // Refresh requests list
+            if (typeof fetchDeliveryRequests === 'function') {
+                console.log('Refreshing delivery requests after decline...');
+                fetchDeliveryRequests();
+            }
+        } else {
+            console.error('Decline failed:', data);
+            showNotification('error', 'Error', data.error || 'Failed to decline delivery.');
+        }
+    } catch (error) {
+        console.error('Error declining offer:', error);
+        showNotification('error', 'Error', `Network error: ${error.message}. Please try again.`);
+    }
+}
+
+// Handle offer expiration
+function handleOfferExpired() {
+    // Stop looping audio
+    stopOfferSoundLoop();
+
+    bootstrap.Modal.getInstance(document.getElementById('deliveryOfferModal')).hide();
+    showNotification('warning', 'Offer Expired', 'This delivery offer has expired. We\'ve sent it to other drivers.');
+    
+    // Refresh requests list
+    if (typeof fetchDeliveryRequests === 'function') {
+        fetchDeliveryRequests();
+    }
+}
+
+// Helper: Show notification
+function showNotification(type, title, message) {
+    try {
+        // Create alert element
+        const alertDiv = document.createElement('div');
+        const alertClass = type === 'error' ? 'danger' : type;
+        alertDiv.className = `alert alert-${alertClass} alert-dismissible fade show fixed-top m-3`;
+        alertDiv.style.zIndex = '9999';
+        alertDiv.style.top = '80px';
+        alertDiv.style.right = '0';
+        alertDiv.style.minWidth = '300px';
+        alertDiv.style.maxWidth = '500px';
+        alertDiv.innerHTML = `
+            <strong>${title}</strong><br><small>${message}</small>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        
+        // Initialize Bootstrap alert functionality
+        const alert = new bootstrap.Alert(alertDiv);
+        
+        // Auto-remove after 5 seconds
+        const timeout = setTimeout(() => {
+            try {
+                alertDiv.remove();
+            } catch (e) {
+                console.debug('Alert already removed');
+            }
+        }, 5000);
+        
+        console.log(`[${type.toUpperCase()}] ${title}: ${message}`);
+    } catch (error) {
+        console.error('Error showing notification:', error);
+        console.log(`[${type.toUpperCase()}] ${title}: ${message}`);
+    }
+}
+
+// Note: Real-time delivery offers are handled by WebSocket in map.html
+// This modal is triggered by the fetchDeliveryRequests() function
+</script>
