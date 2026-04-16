@@ -1,0 +1,132 @@
+{% extends "driver/base_driver.html" %}
+
+{% block title %}Support - Fameko{% endblock %}
+
+{% block content %}
+<div class="container my-1">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="fas fa-headset"></i> Support & Help Center</h2>
+            <p class="text-muted">We're here to help. Find answers or contact our support team.</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- FAQ Section -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-question-circle"></i> Frequently Asked Questions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="faqAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                    How do I accept a delivery?
+                                </button>
+                            </h2>
+                            <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>You can accept deliveries by clicking the "Accept Delivery" button on your dashboard. Available orders will be shown on the map. Simply tap to accept.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                    How are payments processed?
+                                </button>
+                            </h2>
+                            <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>Payments are processed daily. Your earnings are calculated based on completed deliveries and transferred to your bank account on the next business day.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                    What should I do if I encounter a problem with delivery?
+                                </button>
+                            </h2>
+                            <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>If you encounter any issues, please use the "Report Issue" button on the delivery details page or contact our support team directly. We'll help resolve it quickly.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                                    How can I improve my rating?
+                                </button>
+                            </h2>
+                            <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>Deliver orders on time, handle packages carefully, and maintain good communication with customers. Professional behavior leads to better ratings.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Support -->
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-envelope"></i> Contact Support</h5>
+                </div>
+                <div class="card-body">
+                    <form>
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Subject</label>
+                            <input type="text" class="form-control" id="subject" placeholder="Enter subject" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea class="form-control" id="message" rows="4" placeholder="Describe your issue..." required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="priority" class="form-label">Priority</label>
+                            <select class="form-select" id="priority" required>
+                                <option>Low</option>
+                                <option>Medium</option>
+                                <option selected>High</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-paper-plane"></i> Send Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-3">Quick Contact</h6>
+                    <p>
+                        <i class="fas fa-phone text-primary"></i><br>
+                        <strong>+1 (555) 123-4567</strong><br>
+                        <small class="text-muted">Mon-Fri 9AM-6PM</small>
+                    </p>
+                    <hr>
+                    <p>
+                        <i class="fas fa-envelope text-primary"></i><br>
+                        <strong>support@fameko.com</strong><br>
+                        <small class="text-muted">Response within 24hrs</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

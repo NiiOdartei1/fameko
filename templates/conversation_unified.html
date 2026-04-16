@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Chat — Delivery #{{ delivery.id if delivery else conv.id }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8f9fa; }
+        .chat-container { max-width: 900px; margin: 2rem auto; }
+        .card { border: none; border-radius: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .card-header { background: linear-gradient(135deg, #FF6B35 0%, #e55a2b 100%); color: white; border-radius: 1rem 1rem 0 0; }
+        #messagesContainer { background: white; display: flex; flex-direction: column; gap: 0.75rem; padding: 1.5rem; min-height: 60vh; width: 100%; }
+        
+        .message-wrapper { display: flex; margin-bottom: 0.5rem; width: 100%; }
+        .message-wrapper.sent { justify-content: flex-end; }
+        .message-wrapper.received { justify-content: flex-start; }
+        
+        .message-content { display: flex; flex-direction: column; max-width: 70%; }
+        .message-wrapper.sent .message-content { align-items: flex-end; }
+        .message-wrapper.received .message-content { align-items: flex-start; }
+        
+        .message-bubble { padding: 12px 16px; border-radius: 16px; word-wrap: break-word; line-height: 1.4; }
+        .message-wrapper.sent .message-bubble { background: #28a745; color: white; border-bottom-right-radius: 4px; box-shadow: 0 1px 2px rgba(40, 167, 74, 0.2); }
+        .message-wrapper.received .message-bubble { background: #e9ecef; color: #333; border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        
+        .message-time { font-size: 0.7rem; color: #999; margin-top: 4px; padding: 0 4px; }
+        .message-wrapper.sent .message-time { text-align: right; }
+        .message-wrapper.received .message-time { text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Chat</strong>
+                    <div class="small" style="opacity: 0.9;">
+                        {% if user_type == 'customer' and delivery %}
+                            With {{ delivery.driver.full_name if delivery.driver else 'Driver' }}
+                        {% elif user_type == 'driver' and delivery %}
+                            With {{ delivery.customer.name if delivery.customer else 'Customer' }}
+                        {% else %}
+                            Delivery #{{ conv.delivery_id if conv else 'Unknown' }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    {% if user_type == 'customer' and delivery %}
+                        <a href="{{ url_for('customer.track_delivery', delivery_id=delivery.id) }}" class="btn btn-light btn-sm">Back to tracking</a>
+                    {% else %}
+                        <a href="{{ url_for('driver.map') }}" class="btn btn-light btn-sm">Back to map</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body" style="height:60vh; overflow-y:auto; display:flex; flex-direction:column;" id="messagesContainer"></div>
+            <div class="card-footer d-flex gap-2">
+                <input id="chatInput" type="text" class="form-control" placeholder="Type a message..." autocomplete="off">
+                <button id="chatSend" class="btn btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="shared-data" 
+        data-conv-id="{{ conv.id | safe }}" 
+        data-user-type="{{ user_type | safe }}" 
+        data-user-id="{{ current_user.id if current_user.is_authenticated else '' | safe }}"
+        data-debug="user_type_template={{ user_type }}">
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function(){
+        const sd = document.getElementById('shared-data');
+        let convId = sd?.dataset?.convId;
+        let userType = sd?.dataset?.userType;
+        const userId = sd?.dataset?.userId;
+        const debugInfo = sd?.dataset?.debug;
+        const messagesContainer = document.getElementById('messagesContainer');
+        const input = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('chatSend');
+        let lastMsgCount = 0;
+
+        // Normalize and validate
+        userType = String(userType || '').toLowerCase().trim();
+        convId = String(convId || '').trim();
+
+        // Validate and log initialization
+        console.log('=== CHAT INIT ===');
+        console.log('Raw dataset:', { convId: sd?.dataset?.convId, userType: sd?.dataset?.userType });
+        console.log('After normalize:', { convId, userType, userId });
+        console.log('Debug tag:', debugInfo);
+        
+        if (!convId || !userType || (userType !== 'customer' && userType !== 'driver')) {
+            console.error('❌ INVALID DATA', { convId, userType, valid: (userType === 'customer' || userType === 'driver') });
+            messagesContainer.innerHTML = '<div style="color: red; padding: 1rem;">Error: Invalid conversation data. userType=' + userType + '</div>';
+            return;
+        }
+
+        console.log('✓ Chat initialized - userType=' + userType);
+
+        function appendMsg(m) {
+            // A message is from the current user if the sender_type matches the current user's type
+            // Ensure both values are compared as lowercase strings
+            const mSenderType = String(m.sender_type || '').toLowerCase().trim();
+            const isOwnMessage = mSenderType === userType;
+            
+            console.log(`   Rendering: sender='${mSenderType}' userType='${userType}' isOwn=${isOwnMessage} → ${isOwnMessage ? '📤RIGHT' : '📥LEFT'}`);
+            
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${isOwnMessage ? 'sent' : 'received'}`;
+            wrapper.innerHTML = `
+                <div class="message-content">
+                    <div class="message-bubble">${m.body}</div>
+                    <div class="message-time">${new Date(m.created_at).toLocaleString()}</div>
+                </div>
+            `;
+            messagesContainer.appendChild(wrapper);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        async function loadMessages() {
+            try {
+                const route = userType === 'customer' 
+                    ? `/customer/conversation/${convId}/messages`
+                    : `/driver/conversation/${convId}/messages`;
+                console.log('📨 Fetching messages from:', route);
+                const res = await fetch(route);
+                if (!res.ok) {
+                    console.error('❌ Failed to load messages:', res.status, res.statusText);
+                    return;
+                }
+                const data = await res.json();
+                console.log('📨 Messages response:', data);
+                if (!data.success) {
+                    console.error('❌ Messages response not successful:', data);
+                    return;
+                }
+                
+                console.log(`Messages received: ${data.messages.length}, Current count: ${lastMsgCount}`);
+                
+                // Show details of each message
+                data.messages.forEach((m, idx) => {
+                    console.log(`  [${idx}] from='${m.sender_type}' own=${m.sender_type === userType} text='${m.body.substring(0, 20)}...'`);
+                });
+                
+                // Only update if message count changed
+                if (data.messages.length !== lastMsgCount) {
+                    console.log(`✓ Updating display (${lastMsgCount} → ${data.messages.length})`);
+                    messagesContainer.innerHTML = '';
+                    data.messages.forEach(appendMsg);
+                    lastMsgCount = data.messages.length;
+                } else {
+                    console.log('No new messages');
+                }
+            } catch(e) { console.error('❌ loadMessages error', e); }
+        }
+
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            
+            try {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const route = userType === 'customer'
+                    ? `/customer/conversation/${convId}/send`
+                    : `/driver/conversation/${convId}/send`;
+                console.log('Sending message via:', route);
+                const res = await fetch(route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrf,
+                        'X-CSRF-Token': csrf
+                    },
+                    body: JSON.stringify({ body: text })
+                });
+                if (!res.ok) { 
+                    console.error('send failed:', res.status);
+                    return; 
+                }
+                const data = await res.json();
+                console.log('Send response:', data);
+                if (data && data.success) {
+                    // Wait a moment before loading to ensure backend has written the message
+                    setTimeout(() => loadMessages(), 100);
+                }
+            } catch(e) { console.error('sendMessage error', e); }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+        // Polling: refresh messages every 2 seconds
+        setInterval(loadMessages, 2000);
+
+        loadMessages();
+    });
+    </script>
+</body>
+</html>

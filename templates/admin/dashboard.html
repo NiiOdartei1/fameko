@@ -1,0 +1,258 @@
+{% extends "admin/base_admin.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block main_content %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        border-left: 4px solid;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card.primary {
+        border-left-color: #3b82f6;
+    }
+
+    .stat-card.success {
+        border-left-color: #10b981;
+    }
+
+    .stat-card.info {
+        border-left-color: #06b6d4;
+    }
+
+    .stat-card.warning {
+        border-left-color: #f59e0b;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.15;
+    }
+</style>
+
+<!-- Statistics Cards -->
+<div class="row mb-4 g-3">
+    <div class="col-xl-3 col-lg-6 col-md-6">
+        <div class="stat-card primary">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Total Drivers</div>
+                    <p class="stat-value">{{ stats.total_drivers }}</p>
+                </div>
+                <i class="fas fa-users stat-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-lg-6 col-md-6">
+        <div class="stat-card success">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Active Drivers</div>
+                    <p class="stat-value">{{ stats.active_drivers }}</p>
+                </div>
+                <i class="fas fa-user-check stat-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-lg-6 col-md-6">
+        <div class="stat-card info">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Total Orders</div>
+                    <p class="stat-value">{{ stats.total_orders }}</p>
+                </div>
+                <i class="fas fa-box stat-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-lg-6 col-md-6">
+        <div class="stat-card warning">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Pending Approvals</div>
+                    <p class="stat-value">{{ stats.pending_deliveries }}</p>
+                </div>
+                <i class="fas fa-clock stat-icon"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Drivers Section -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock-o"></i> Pending Driver Approvals
+                </h5>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="table-responsive">
+                    <table class="table table-hover" id="pendingDriversTable">
+                        <thead style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                            <tr>
+                                <th style="color: #64748b; font-weight: 600;">Name</th>
+                                <th style="color: #64748b; font-weight: 600;">Email</th>
+                                <th style="color: #64748b; font-weight: 600;">Phone</th>
+                                <th style="color: #64748b; font-weight: 600;">Vehicle</th>
+                                <th style="color: #64748b; font-weight: 600;">License</th>
+                                <th style="color: #64748b; font-weight: 600;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Pending drivers will be loaded here via JavaScript -->
+                        </tbody>
+                    </table>
+                    <div id="emptyState" class="text-center py-4">
+                        <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+                        <p style="color: #94a3b8;">No pending drivers</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load pending drivers
+document.addEventListener('DOMContentLoaded', function() {
+    loadPendingDrivers();
+});
+
+function loadPendingDrivers() {
+    fetch('/admin/drivers?status=Pending')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector('#pendingDriversTable tbody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+            
+            if (data.drivers && data.drivers.length > 0) {
+                emptyState.style.display = 'none';
+                document.querySelector('#pendingDriversTable').style.display = 'table';
+                
+                data.drivers.forEach(driver => {
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid #e2e8f0';
+                    row.innerHTML = `
+                        <td><strong>${driver.full_name}</strong></td>
+                        <td>${driver.email}</td>
+                        <td>${driver.phone}</td>
+                        <td><small>${driver.vehicle_type} - ${driver.vehicle_number}</small></td>
+                        <td><code>${driver.license_number}</code></td>
+                        <td>
+                            <button class="btn btn-sm btn-success" onclick="approveDriver(${driver.id})" style="font-size: 0.875rem;">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="rejectDriver(${driver.id})" style="font-size: 0.875rem;">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                document.querySelector('#pendingDriversTable').style.display = 'none';
+                emptyState.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading pending drivers:', error);
+        });
+}
+
+function approveDriver(driverId) {
+    if (confirm('Are you sure you want to approve this driver?')) {
+        fetch(`/admin/drivers/${driverId}/approve`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': window.csrfToken
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = '/admin/drivers-page';
+            } else {
+                alert('Error approving driver');
+            }
+        })
+        .catch(error => {
+            console.error('Error approving driver:', error);
+            alert('Error approving driver');
+        });
+    }
+}
+
+function rejectDriver(driverId) {
+    const reason = prompt('Reason for rejection (optional):');
+    if (confirm('Are you sure you want to reject this driver?')) {
+        fetch(`/admin/drivers/${driverId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify({ reason: reason })
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = '/admin/drivers-page';
+            } else {
+                alert('Error rejecting driver');
+            }
+        })
+        .catch(error => {
+            console.error('Error rejecting driver:', error);
+            alert('Error rejecting driver');
+        });
+    }
+}
+</script>
+
+<script>
+    // Make CSRF token available for AJAX requests
+    window.csrfToken = '{{ csrf_token() }}';
+</script>
+
+{% endblock %}

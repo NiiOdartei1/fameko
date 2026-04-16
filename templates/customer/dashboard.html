@@ -1,0 +1,157 @@
+{% extends "customer/base_customer.html" %}
+
+{% block title %}Home - Fameko{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Primary Action Button -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="{{ url_for('customer.create_order_page') }}" class="btn btn-lg w-100" style="padding: 1.2rem; font-size: 1rem; border-radius: 0.75rem; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: none; color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);">
+                <i class="fas fa-plus-circle me-2"></i>Request Delivery
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Deliveries Section -->
+    <div class="mb-5">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+            <i class="fas fa-fire" style="color: #FF6B35; font-size: 1.3rem;"></i>
+            <h5 style="margin: 0; font-weight: 700; color: #1a1a1a;">Active Deliveries</h5>
+        </div>
+        {% set active_orders = orders|selectattr('status', 'in', ['Pending', 'Approved', 'Assigned']) %}
+        {% if active_orders|list %}
+            <div class="row g-3">
+                {% for order in active_orders %}
+                <div class="col-md-6">
+                    <a href="{{ url_for('customer.get_order', order_id=order.id) }}" style="text-decoration: none;">
+                        <div class="card h-100" style="border: none; border-radius: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.08); background: white; transition: all 0.3s ease;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)'; this.style.transform='translateY(-4px)';" onmouseout="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)';">
+                            <div class="card-body">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                                    <div>
+                                        <h6 style="margin-bottom: 0.25rem; font-weight: 700; color: #1a1a1a;">Order #{{ order.id }}</h6>
+                                        <small style="color: #999;">{{ order.created_at.strftime('%b %d, %Y') if order.created_at else 'N/A' }}</small>
+                                    </div>
+                                    <span class="badge" style="background: #0dcaf0; color: white; font-weight: 600; padding: 0.5rem 0.75rem;">{{ order.status }}</span>
+                                </div>
+                                <p style="margin-bottom: 0.75rem; color: #666; font-size: 0.9rem;">
+                                    <i class="fas fa-map-pin me-2" style="color: #28a745;"></i>{{ order.shipping_address[:45] }}{% if order.shipping_address|length > 45 %}...{% endif %}
+                                </p>
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid #f0f0f0;">
+                                    <div>
+                                        <small style="color: #999; display: block;">Amount</small>
+                                        <strong style="color: #28a745; font-size: 1.1rem;">GHS {{ '%.2f'|format(order.total_amount or 0) }}</strong>
+                                    </div>
+                                    <i class="fas fa-chevron-right" style="color: #ddd; font-size: 1.2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="text-align: center; padding: 3rem 1rem; background: #f8f9fa; border-radius: 1rem;">
+                <i class="fas fa-inbox" style="font-size: 2.5rem; color: #d0d0d0; margin-bottom: 1rem; display: block;"></i>
+                <p style="color: #999; margin-bottom: 1.5rem;">No active deliveries at the moment</p>
+                <a href="{{ url_for('customer.create_order_page') }}" class="btn btn-sm" style="background: #28a745; color: white; border: none; border-radius: 0.5rem; padding: 0.5rem 1rem; font-weight: 600;">
+                    <i class="fas fa-plus-circle me-1"></i>Create One Now
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Completed Deliveries Section -->
+    <div class="mb-5">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+            <i class="fas fa-check-circle" style="color: #28a745; font-size: 1.3rem;"></i>
+            <h5 style="margin: 0; font-weight: 700; color: #1a1a1a;">Recent Deliveries</h5>
+        </div>
+        {% set reversed_orders = orders|reverse|list %}
+        {% if reversed_orders %}
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                {% for order in reversed_orders[:5] %}
+                <a href="{{ url_for('customer.get_order', order_id=order.id) }}" style="text-decoration: none;">
+                    <div class="card h-100" style="border: none; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); background: white; transition: all 0.3s ease; display: flex; flex-direction: row;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'; this.style.backgroundColor='#f8f9fa';" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'; this.style.backgroundColor='white';">
+                        <div style="display: flex; align-items: center; justify-content: center; width: 4rem; background: #e8f5e9; border-radius: 0.75rem 0 0 0.75rem;">
+                            <i class="fas fa-check-circle" style="font-size: 1.5rem; color: #28a745;"></i>
+                        </div>
+                        <div class="card-body" style="flex: 1; padding: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <h6 style="margin-bottom: 0.25rem; font-weight: 700; color: #1a1a1a;">Order #{{ order.id }}</h6>
+                                    <p style="margin: 0.25rem 0 0 0; color: #666; font-size: 0.9rem;">
+                                        <i class="fas fa-map-pin me-1" style="color: #999;"></i>{{ order.shipping_address[:45] }}{% if order.shipping_address|length > 45 %}...{% endif %}
+                                    </p>
+                                    <small style="color: #999;">{{ order.created_at.strftime('%b %d, %Y') if order.created_at else 'N/A' }}</small>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span class="badge" style="background: #28a745; color: white; font-weight: 600; padding: 0.4rem 0.7rem; display: inline-block;">{{ order.status[:12] }}</span>
+                                    <div style="margin-top: 0.5rem; font-weight: 700; color: #28a745;">GHS {{ '%.2f'|format(order.total_amount or 0) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="text-align: center; padding: 2rem 1rem; background: #f8f9fa; border-radius: 0.75rem;">
+                <i class="fas fa-package" style="font-size: 2rem; color: #d0d0d0; margin-bottom: 0.75rem; display: block;"></i>
+                <p style="color: #999; margin: 0;">No deliveries yet</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .btn-lg {
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+        padding: 1rem;
+    }
+    
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+    
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* Badge styling */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Section header styling */
+    h5 {
+        letter-spacing: 0.3px;
+    }
+    
+    /* Link styling */
+    a {
+        color: #28a745;
+        text-decoration: none;
+    }
+    
+    a:hover {
+        color: #20c997;
+        text-decoration: none;
+    }
+</style>
+{% endblock%}
