@@ -1,0 +1,306 @@
+{% extends "driver/base_driver.html" %}
+
+{% block title %}Driver Profile - Fameko{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card text-center mb-3">
+                <div class="card-body">
+                    <div class="mb-3">
+                        {% if driver.profile_picture %}
+                            <img src="/uploads/drivers/documents/{{ driver.profile_picture }}" alt="Driver Profile" class="rounded-circle" style="width: 100px; height: 100px; object-fit: cover; border: 3px solid var(--primary-color);">
+                        {% else %}
+                            <i class="fas fa-user-circle" style="font-size: 5rem; color: var(--primary-color);"></i>
+                        {% endif %}
+                    </div>
+                    <h5>{{ driver.full_name if driver else 'Driver Name' }}</h5>
+                    <p class="text-muted">@{{ driver.username if driver else 'username' }}</p>
+                    <hr>
+                    <p class="mb-1"><strong>Rating:</strong> ⭐ {{ "%.1f"|format(driver.average_rating or 0) }}/5</p>
+                    <p><strong>Deliveries:</strong> {{ driver.completed_deliveries or 0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-user-edit"></i> Profile Information</h5>
+                </div>
+                <div class="card-body">
+                    <form>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="full_name" class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="full_name" value="{{ driver.full_name or '' }}" disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" value="{{ driver.email or '' }}" disabled>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="phone" value="{{ driver.phone or '' }}" disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="region" class="form-label">Region</label>
+                                <input type="text" class="form-control" id="region" value="{{ driver.region or '' }}" disabled>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="vehicle" class="form-label">Vehicle Type</label>
+                                <input type="text" class="form-control" id="vehicle" value="{{ driver.vehicle_type or '' }}" disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="service_type" class="form-label">Service Type</label>
+                                <input type="text" class="form-control" id="service_type" value="{{ driver.service_type or 'Package' }}" disabled>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="vehicle_number" class="form-label">Vehicle Number</label>
+                                <input type="text" class="form-control" id="vehicle_number" value="{{ driver.vehicle_number or '' }}" disabled>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="license" class="form-label">License Number</label>
+                                <input type="text" class="form-control" id="license" value="{{ driver.license_number or '' }}" disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="status" class="form-label">Status</label>
+                                <input type="text" class="form-control" id="status" value="{{ 'Active' if driver.is_online else 'Inactive' }}" disabled>
+                            </div>
+                        </div>
+
+                        <div id="buttonContainer">
+                            <button type="button" class="btn btn-primary" id="editBtn" onclick="toggleEditMode()">
+                                <i class="fas fa-edit"></i> Edit Profile
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Performance Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h6 class="text-muted">Total Deliveries</h6>
+                            <h3>{{ driver.completed_deliveries or 0 }}</h3>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">On-Time Rate</h6>
+                            <h3>{{ "%.1f"|format(driver.on_time_rate or 0) }}%</h3>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">Avg Rating</h6>
+                            <h3>{{ "%.1f"|format(driver.average_rating or 0) }}/5</h3>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">Total Earned</h6>
+                            <h3>GH₵ {{ "%.2f"|format(driver.total_earnings or 0) }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let isEditMode = false;
+
+function getCsrfToken() {
+    // Try to get CSRF token from meta tag
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken) {
+        return metaToken.getAttribute('content');
+    }
+    
+    // Try to get from hidden input in page
+    const inputToken = document.querySelector('input[name="csrf_token"]');
+    if (inputToken) {
+        return inputToken.value;
+    }
+    
+    // Try to get from form data (Flask-WTF default)
+    const forms = document.querySelectorAll('form');
+    for (let form of forms) {
+        const token = form.querySelector('input[name="csrf_token"]');
+        if (token) {
+            return token.value;
+        }
+    }
+    
+    // Try to get from cookie
+    const name = 'csrf_token=';
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const cookieArray = decodedCookie.split(';');
+    for (let i = 0; i < cookieArray.length; i++) {
+        let cookie = cookieArray[i].trim();
+        if (cookie.indexOf(name) === 0) {
+            return cookie.substring(name.length);
+        }
+    }
+    
+    return '';
+}
+
+function toggleEditMode() {
+    const form = document.querySelector('form');
+    const inputs = form.querySelectorAll('input:not([type="hidden"])');
+    const editBtn = document.getElementById('editBtn');
+    const buttonContainer = document.getElementById('buttonContainer');
+    
+    if (!isEditMode) {
+        // Enter edit mode
+        isEditMode = true;
+        inputs.forEach(input => {
+            if (input.id !== 'status') { // Don't allow editing status directly
+                input.disabled = false;
+                input.classList.add('border-primary');
+            }
+        });
+        editBtn.innerHTML = '<i class="fas fa-check"></i> Save Changes';
+        editBtn.classList.remove('btn-primary');
+        editBtn.classList.add('btn-success');
+        
+        // Add cancel button
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn btn-secondary ms-2';
+        cancelBtn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+        cancelBtn.onclick = cancelEdit;
+        buttonContainer.appendChild(cancelBtn);
+    } else {
+        // Save changes
+        saveProfileChanges(inputs);
+    }
+}
+
+function cancelEdit() {
+    const form = document.querySelector('form');
+    const inputs = form.querySelectorAll('input:not([type="hidden"])');
+    const editBtn = document.getElementById('editBtn');
+    const buttonContainer = document.getElementById('buttonContainer');
+    
+    // Reset form to original values
+    form.reset();
+    
+    // Exit edit mode
+    isEditMode = false;
+    inputs.forEach(input => {
+        input.disabled = true;
+        input.classList.remove('border-primary');
+    });
+    editBtn.innerHTML = '<i class="fas fa-edit"></i> Edit Profile';
+    editBtn.classList.remove('btn-success');
+    editBtn.classList.add('btn-primary');
+    
+    // Remove cancel button
+    const cancelBtn = buttonContainer.querySelector('.btn-secondary');
+    if (cancelBtn) {
+        cancelBtn.remove();
+    }
+}
+
+async function saveProfileChanges(inputs) {
+    try {
+        const updatedData = {};
+        
+        inputs.forEach(input => {
+            if (input.id && input.id !== 'status' && !input.disabled) {
+                updatedData[input.id] = input.value;
+            }
+        });
+        
+        // Validate required fields
+        if (!updatedData.phone || !updatedData.vehicle || !updatedData.region) {
+            alert('Please fill in all required fields');
+            return;
+        }
+        
+        // Map form IDs to API field names
+        const apiData = {
+            phone: updatedData.phone,
+            vehicle_type: updatedData.vehicle,
+            region: updatedData.region,
+            vehicle_number: updatedData.vehicle_number || ''
+        };
+        
+        // Show loading state
+        const editBtn = document.getElementById('editBtn');
+        const originalText = editBtn.innerHTML;
+        editBtn.disabled = true;
+        editBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        
+        const response = await fetch('{{ url_for("driver.update_profile") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(apiData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Success - exit edit mode
+            show_alert('Profile updated successfully!', 'success');
+            cancelEdit();
+            
+            // Update the display values
+            document.getElementById('vehicle').value = apiData.vehicle_type;
+            document.getElementById('phone').value = apiData.phone;
+            document.getElementById('region').value = apiData.region;
+            document.getElementById('vehicle_number').value = apiData.vehicle_number;
+        } else {
+            show_alert(data.message || 'Error updating profile', 'danger');
+        }
+    } catch (error) {
+        show_alert('Error: ' + error.message, 'danger');
+        console.error('Profile update error:', error);
+    } finally {
+        const editBtn = document.getElementById('editBtn');
+        editBtn.disabled = false;
+        if (isEditMode) {
+            editBtn.innerHTML = '<i class="fas fa-check"></i> Save Changes';
+        }
+    }
+}
+
+function show_alert(message, type) {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Insert at top of container
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}
