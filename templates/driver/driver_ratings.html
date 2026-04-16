@@ -1,0 +1,495 @@
+{% extends "driver/base_driver.html" %}
+
+{% block title %}Driver Ratings - Driver Portal{% endblock %}
+
+{% block content %}
+<style>
+    .ratings-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .ratings-header {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .ratings-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.75rem;
+    }
+
+    .ratings-header p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .rating-summary {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+    }
+
+    .rating-score {
+        text-align: center;
+    }
+
+    .rating-score-big {
+        font-size: 3rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+
+    .rating-score-stars {
+        color: #f59e0b;
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .rating-score-label {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .rating-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .rating-stat {
+        text-align: center;
+    }
+
+    .rating-stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #10b981;
+    }
+
+    .rating-stat-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 0.5rem;
+    }
+
+    .rating-distribution {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .rating-distribution h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.25rem;
+        color: #1e293b;
+    }
+
+    .rating-bar {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .rating-bar-label {
+        width: 80px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .rating-bar-fill {
+        flex: 1;
+        height: 24px;
+        background: #e2e8f0;
+        border-radius: 0.25rem;
+        overflow: hidden;
+    }
+
+    .rating-bar-progress {
+        height: 100%;
+        background: linear-gradient(90deg, #f59e0b 0%, #f59e0b 100%);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 0.5rem;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 600;
+        width: calc(var(--width, 0) * 1%);
+    }
+
+    .rating-bar-count {
+        width: 50px;
+        text-align: right;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .categories-section {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .categories-section h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.25rem;
+        color: #1e293b;
+    }
+
+    .category-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .category-card {
+        background: #f8fafc;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        text-align: center;
+        border-left: 4px solid #cbd5e1;
+    }
+
+    .category-card.professionalism {
+        border-left-color: #3b82f6;
+    }
+
+    .category-card.cleanliness {
+        border-left-color: #10b981;
+    }
+
+    .category-card.speed {
+        border-left-color: #f59e0b;
+    }
+
+    .category-card.friendliness {
+        border-left-color: #8b5cf6;
+    }
+
+    .category-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .category-name {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+
+    .category-rating {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #f59e0b;
+    }
+
+    .category-rating-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    .commission-section {
+        background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        border-radius: 0.75rem;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .commission-section h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.25rem;
+    }
+
+    .commission-tiers {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    .commission-tier {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 0.375rem;
+        padding: 1rem;
+        text-align: center;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .commission-tier.active {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .commission-tier-rating {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .commission-tier-percent {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .commission-tier-label {
+        font-size: 0.75rem;
+        opacity: 0.9;
+    }
+
+    .recent-ratings {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .recent-ratings h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.25rem;
+        color: #1e293b;
+    }
+
+    .rating-comment {
+        background: #f8fafc;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #f59e0b;
+    }
+
+    .rating-comment-rating {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .rating-comment-text {
+        color: #475569;
+        font-size: 0.875rem;
+        font-style: italic;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #64748b;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #cbd5e1;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .rating-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .rating-bar {
+            flex-wrap: wrap;
+        }
+
+        .category-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .commission-tiers {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="ratings-container">
+    <!-- Header -->
+    <div class="ratings-header">
+        <h1><i class="fas fa-star"></i> Driver Ratings & Reviews</h1>
+        <p>Your performance metrics and customer feedback</p>
+    </div>
+
+    <!-- Overall Rating Summary -->
+    <div class="rating-summary">
+        <div class="rating-score">
+            <div class="rating-score-big">{{ "%.1f"|format(avg_rating or 0) }}</div>
+            <div class="rating-score-stars">
+                {% for i in range(5) %}
+                    {% if i < (avg_rating or 0)|int %}
+                        ⭐
+                    {% elif i < (avg_rating or 0) %}
+                        🌙
+                    {% else %}
+                        ☆
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <div class="rating-score-label">Out of 5 stars</div>
+        </div>
+        <div class="rating-stats-grid">
+            <div class="rating-stat">
+                <div class="rating-stat-number">{{ ratings|length }}</div>
+                <div class="rating-stat-label">Total Ratings</div>
+            </div>
+            <div class="rating-stat">
+                <div class="rating-stat-number">
+                    {% set positive_count = ratings|selectattr('is_positive', 'equalto', True)|list|length %}
+                    {{ positive_count }}
+                </div>
+                <div class="rating-stat-label">Positive</div>
+            </div>
+            <div class="rating-stat">
+                <div class="rating-stat-number">
+                    {% set positive_pct = (positive_count / (ratings|length or 1) * 100)|int %}
+                    {{ positive_pct }}%
+                </div>
+                <div class="rating-stat-label">Satisfaction</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rating Distribution -->
+    {% if rating_distribution %}
+        <div class="rating-distribution">
+            <h2>Rating Distribution</h2>
+            {% for star in range(5, 0, -1) %}
+                <div class="rating-bar">
+                    <div class="rating-bar-label">{{ star }} ⭐</div>
+                    <div class="rating-bar-fill">
+                        {% set count = rating_distribution.get(star, 0) %}
+                        {% set percentage = (count / (ratings|length or 1) * 100)|int %}
+                        <div class="rating-bar-progress" style="--width: {{percentage}}">
+                            {% if percentage > 5 %}{{ percentage }}%{% endif %}
+                        </div>
+                    </div>
+                    <div class="rating-bar-count">{{ count }}</div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Categories Breakdown -->
+    {% if category_stats %}
+        <div class="categories-section">
+            <h2><i class="fas fa-th"></i> Performance by Category</h2>
+            <div class="category-grid">
+                {% for category, stats in category_stats.items() %}
+                    <div class="category-card {{ category.lower() }}">
+                        <div class="category-icon">
+                            {% if category == 'Professionalism' %}
+                                👔
+                            {% elif category == 'Cleanliness' %}
+                                🧹
+                            {% elif category == 'Speed' %}
+                                ⚡
+                            {% elif category == 'Friendliness' %}
+                                😊
+                            {% else %}
+                                ⭐
+                            {% endif %}
+                        </div>
+                        <div class="category-name">{{ category }}</div>
+                        <div class="category-rating">{{ "%.1f"|format(stats.avg or 0) }}</div>
+                        <div class="category-rating-label">{{ stats.count }} ratings</div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Commission Impact -->
+    {% if commission_impact %}
+        <div class="commission-section">
+            <h2><i class="fas fa-percent"></i> Commission Tiers</h2>
+            <p style="margin: 0 0 1.5rem 0; opacity: 0.9;">Your rating affects the commission rate on your earnings</p>
+            <div class="commission-tiers">
+                {% for tier, pct in [('5.0', 0), ('4.5-4.9', 5), ('4.0-4.4', 10), ('<4.0', 15)] %}
+                    <div class="commission-tier {% if loop.index == 1 %}active{% endif %}">
+                        <div class="commission-tier-rating">{{ tier }}⭐</div>
+                        <div class="commission-tier-percent">+{{ pct }}%</div>
+                        <div class="commission-tier-label">Commission</div>
+                    </div>
+                {% endfor %}
+            </div>
+            <p style="margin: 1.5rem 0 0 0; opacity: 0.9; font-size: 0.875rem;">
+                <i class="fas fa-info-circle"></i> Higher ratings mean lower commission rates. Maintain excellent service!
+            </p>
+        </div>
+    {% endif %}
+
+    <!-- Recent Feedback -->
+    {% if ratings %}
+        <div class="recent-ratings">
+            <h2><i class="fas fa-comments"></i> Recent Customer Feedback</h2>
+            {% set recent_ratings = ratings[:5] %}
+            {% for rating in recent_ratings %}
+                <div class="rating-comment">
+                    <div class="rating-comment-rating">
+                        {% for i in range(rating.rating) %}⭐{% endfor %}
+                        <span>{{ rating.rating }}/5</span>
+                    </div>
+                    {% if rating.comment %}
+                        <div class="rating-comment-text">{{ rating.comment }}</div>
+                    {% endif %}
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem;">
+                        Category: {{ rating.category }}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <h3>No Ratings Yet</h3>
+            <p>Complete deliveries to start receiving customer ratings</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Animate rating numbers on page load
+document.querySelectorAll('.rating-score-big, .rating-stat-number').forEach(el => {
+    const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) {
+            el.style.animation = 'fadeIn 0.5s ease-in';
+            observer.unobserve(el);
+        }
+    });
+    observer.observe(el);
+});
+
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}
