@@ -1,0 +1,1077 @@
+{% extends "customer/base_customer.html" %}
+
+{% block title %}Request Delivery{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Location Header with Search -->
+    <div class="bg-white border-bottom p-3" style="z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+        <div class="row g-2 align-items-start">
+            <!-- Pickup Location -->
+            <div class="col-12 col-md-5 position-relative">
+                <small class="text-muted d-block" style="font-weight: 600; letter-spacing: 0.5px; font-size: 0.7rem;">📍 PICKUP FROM</small>
+                <div class="d-flex align-items-center gap-2">
+                    <div id="pickupDisplayContainer" class="flex-grow-1 d-flex align-items-center gap-2 cursor-pointer p-3 rounded"
+                         style="background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%); min-height: 50px; border: 2px solid transparent; transition: all 0.2s; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.1);"
+                         onclick="editPickupLocation()">
+                        <i class="fas fa-location-dot" style="color: #e74c3c; font-size: 1.2rem;"></i>
+                        <div class="flex-grow-1">
+                            <div id="pickupLocationDisplay" style="font-weight: 600; color: #333; font-size: 0.95rem;">Select pickup location</div>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color: #999; font-size: 0.9rem;"></i>
+                    </div>
+                    
+                    <!-- Swap Button - Mobile: Right of inputs, Desktop: Between inputs -->
+                    <button type="button" class="btn btn-sm rounded-circle d-md-none" 
+                            id="swapLocationsBtnMobile" onclick="swapLocations()" 
+                            style="width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; background: white; border: none; color: #5f6368; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.12);"
+                            title="Swap pickup and delivery">
+                        <span style="font-size: 24px; font-family: 'Material Icons', sans-serif; line-height: 1;">⇅</span>
+                    </button>
+                </div>
+                
+                <!-- Pickup Search Input (Hidden by default) -->
+                <div id="pickupSearchContainer" class="position-absolute w-100 bg-white rounded shadow-lg mt-1" 
+                     style="top: 100%; left: 0; display: none; z-index: 1001; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+                    <div class="p-3">
+                        <input type="text" class="form-control form-control-sm" id="pickup_address" 
+                               placeholder="Search pickup location..." autocomplete="off" onkeyup="setTimeout(() => getAddressSuggestions(this.value, true), 100)" style="border: 2px solid #f0f0f0; border-radius: 0.5rem; padding: 0.75rem;">
+                        <div id="pickup_suggestions" class="mt-2 border-top pt-2" style="max-height: 150px; overflow-y: auto;"></div>
+                        <button type="button" class="btn btn-sm btn-link mt-2" onclick="closePickupSearch()" style="color: #e74c3c;">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Swap Button - Desktop only -->
+            <div class="col-md-2 text-center d-none d-md-block" style="padding-top: 1.5rem;">
+                <button type="button" class="btn btn-sm rounded-circle" 
+                        id="swapLocationsBtn" onclick="swapLocations()" 
+                        style="width: 50px; height: 50px; padding: 0; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border: 2px solid #e0e0e0; color: #666; transition: all 0.3s; font-weight: 600;"
+                        title="Swap pickup and delivery" onmouseover="this.style.background='#e74c3c'; this.style.color='white'; this.style.borderColor='#e74c3c';" onmouseout="this.style.background='#f0f0f0'; this.style.color='#666'; this.style.borderColor='#e0e0e0';">
+                    <i class="fas fa-arrow-right-arrow-left"></i>
+                </button>
+            </div>
+
+            <!-- Dropoff Location -->
+            <div class="col-md-5 position-relative">
+                <small class="text-muted d-block" style="font-weight: 600; letter-spacing: 0.5px; font-size: 0.7rem;">📍 DELIVERY TO</small>
+                <div id="dropoffDisplayContainer" class="d-flex align-items-center gap-2 cursor-pointer p-3 rounded"
+                     style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); min-height: 50px; border: 2px solid transparent; transition: all 0.2s; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);"
+                     onclick="editDropoffLocation()">
+                    <i class="fas fa-map-pin" style="color: #28a745; font-size: 1.2rem;"></i>
+                    <div class="flex-grow-1">
+                        <div id="dropoffLocationDisplay" style="font-weight: 600; color: #333; font-size: 0.95rem;">Select delivery location</div>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color: #999; font-size: 0.9rem;"></i>
+                </div>
+                
+                <!-- Dropoff Search Input (Hidden by default) -->
+                <div id="dropoffSearchContainer" class="position-absolute w-100 bg-white rounded shadow-lg mt-1" 
+                     style="top: 100%; right: 0; display: none; z-index: 1001; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+                    <div class="p-3">
+                        <input type="text" class="form-control form-control-sm" id="shipping_address" 
+                               placeholder="Search delivery location..." autocomplete="off" onkeyup="setTimeout(() => getAddressSuggestions(this.value, false), 100)" style="border: 2px solid #f0f0f0; border-radius: 0.5rem; padding: 0.75rem;">
+                        <div id="dropoff_suggestions" class="mt-2 border-top pt-2" style="max-height: 150px; overflow-y: auto;"></div>
+                        <button type="button" class="btn btn-sm btn-link mt-2" onclick="closeDropoffSearch()" style="color: #28a745;">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <small class="text-muted d-block mt-2" style="font-size: 0.75rem; font-weight: 500;">💡 Click location card or tap on map to set location</small>
+    </div>
+    
+    <!-- Map Section -->
+    <section id="mapSection" class="w-100" style="height: 70vh; min-height: 500px; overflow: hidden; background: #f8f9fa;">
+        <div id="map" style="width: 100%; height: 100%;"></div>
+    </section>
+
+    <!-- Request Form Panel Section -->
+    <section id="formSection" class="w-100 bg-white" style="padding: 1rem; border-top: 2px solid #f0f0f0;">
+        <form method="POST" action="{{ url_for('customer.create_order') }}" id="deliveryForm" onsubmit="return validateFormSubmission()">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" id="service_type_hidden" name="service_type_selected" value="package_delivery">
+            <input type="hidden" id="customer_name" value="{{ current_user.name }}">
+            
+            <!-- Service Type Selector -->
+            <div class="mb-3">
+                <small class="text-muted d-block" style="font-weight: 600; letter-spacing: 0.5px; font-size: 0.7rem; margin-bottom: 0.75rem;">📦 SERVICE TYPE</small>
+                <div class="btn-group w-100" role="group" style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <input type="radio" class="btn-check" name="service_type" id="serviceTypePackage" value="package_delivery" checked>
+                    <label class="btn btn-outline-secondary flex-grow-1" for="serviceTypePackage" 
+                           style="border-radius: 0.5rem 0 0 0.5rem; font-weight: 600; padding: 0.75rem;">
+                        <i class="fas fa-box me-2"></i>Package Delivery
+                    </label>
+                    
+                    <input type="radio" class="btn-check" name="service_type" id="serviceTypePersonal" value="personal_transportation">
+                    <label class="btn btn-outline-secondary flex-grow-1" for="serviceTypePersonal" 
+                           style="border-radius: 0 0.5rem 0.5rem 0; font-weight: 600; padding: 0.75rem;">
+                        <i class="fas fa-user me-2"></i>Personal Transportation
+                    </label>
+                </div>
+                <div class="p-2 mt-2 rounded" id="serviceDescription" 
+                     style="background: linear-gradient(135deg, #e8f7ff 0%, #f0f9ff 100%); border-left: 4px solid #FF6B35; font-size: 0.85rem; color: #333;">
+                    <small style="font-weight: 500;">
+                        <i class="fas fa-info-circle me-2" style="color: #FF6B35;"></i>
+                        <span id="typeDescription">Send packages and parcels to any location in Ghana</span>
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Recipient Info -->
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="form-label small fw-bold text-muted d-block" id="nameLabel">RECIPIENT NAME</label>
+                    <input type="text" class="form-control" id="shipping_name" name="shipping_name" 
+                           placeholder="Enter recipient name" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label small fw-bold text-muted d-block" id="phoneLabel">PHONE</label>
+                    <input type="tel" class="form-control" id="shipping_phone" name="shipping_phone" 
+                           placeholder="Phone" value="{{ current_user.phone }}" required>
+                </div>
+            </div>
+
+            <!-- Package Weight -->
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted d-block">WEIGHT (KG)</label>
+                <input type="number" class="form-control" id="weight" 
+                       placeholder="Weight in kilograms" min="0.1" step="0.1" required value="1">
+            </div>
+
+
+
+            <!-- Hidden fields for server -->
+            <input type="hidden" id="pickup_lat" name="pickup_lat">
+            <input type="hidden" id="pickup_lng" name="pickup_lng">
+            <input type="hidden" id="latitude" name="latitude">
+            <input type="hidden" id="longitude" name="longitude">
+            <input type="hidden" id="pickup_location" name="pickup_location">
+            <input type="hidden" id="dropoff_location" name="dropoff_location">
+            <input type="hidden" id="dropoff_lat" name="dropoff_lat">
+            <input type="hidden" id="dropoff_lng" name="dropoff_lng">
+            <input type="hidden" id="total_amount" name="total_amount" value="10.00">
+            <input type="hidden" id="payment_method" name="payment_method" value="Cash on Delivery">
+            <input type="hidden" id="distance_km" name="distance_km" value="0">
+            <input type="hidden" id="duration_minutes" name="estimated_duration_minutes" value="0">
+            <input type="hidden" id="base_fare" name="base_fare" value="5.00">
+            <input type="hidden" id="per_km_rate" name="per_km_rate" value="1.50">
+
+            <!-- Cost Breakdown -->
+            <div class="card bg-white mb-3" style="border: 2px solid #f0f0f0; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <div class="card-body p-3">
+                    <div class="row text-center small">
+                        <div class="col-4">
+                            <i class="fas fa-road" style="font-size: 1.2rem; color: #e74c3c; margin-bottom: 0.5rem; display: block;"></i>
+                            <div class="text-muted" style="font-size: 0.8rem; font-weight: 500;">Distance</div>
+                            <h6 class="mb-0" id="displayDistance" style="font-weight: 700; color: #333; margin-top: 0.3rem;">0 km</h6>
+                        </div>
+                        <div class="col-4">
+                            <i class="fas fa-hourglass-half" style="font-size: 1.2rem; color: #f39c12; margin-bottom: 0.5rem; display: block;"></i>
+                            <div class="text-muted" style="font-size: 0.8rem; font-weight: 500;">Duration</div>
+                            <h6 class="mb-0" id="displayDuration" style="font-weight: 700; color: #333; margin-top: 0.3rem;">0 min</h6>
+                        </div>
+                        <div class="col-4">
+                            <i class="fas fa-coins" style="font-size: 1.2rem; color: #28a745; margin-bottom: 0.5rem; display: block;"></i>
+                            <div class="text-muted" style="font-size: 0.8rem; font-weight: 500;">Est. Cost</div>
+                            <h6 class="mb-0" id="displayCost" style="font-weight: 700; color: #28a745; margin-top: 0.3rem;">GHS 10.00</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Cost -->
+            <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);">
+                <div>
+                    <small class="d-block" style="opacity: 0.9; font-weight: 500;">TOTAL ESTIMATED COST</small>
+                    <h4 class="mb-0" style="font-weight: 700; font-size: 1.5rem;">GHS <span id="estimatedCost">10.00</span></h4>
+                </div>
+                <small style="opacity: 0.9; font-weight: 500; text-align: right;">
+                    <i class="fas fa-money-bill me-1"></i>Cash on Delivery
+                </small>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="row g-2">
+                <div class="col-6">
+                    <button type="button" id="requestBtn" class="btn btn-lg w-100" 
+                            style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); border: none; color: white; border-radius: 0.75rem; font-weight: 600; box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);"
+                            onclick="calculateDeliveryDetails()">
+                        <i class="fas fa-route me-2"></i>Request Quote
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button type="submit" id="confirmBtn" class="btn btn-lg w-100" disabled
+                            style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: none; color: white; border-radius: 0.75rem; font-weight: 600; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); opacity: 0.5;">
+                        <i class="fas fa-check me-2"></i>Confirm Order
+                    </button>
+                </div>
+                <div class="col-12">
+                    <a href="{{ url_for('customer.dashboard') }}" class="btn btn-outline-secondary btn-lg w-100" style="border-radius: 0.75rem; font-weight: 600;">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </section>
+</div>
+
+<!-- MapLibre GL CSS -->
+<link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet">
+
+<style>
+    .form-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        color: #94a3b8;
+    }
+    
+    .form-control {
+        border-radius: 0.5rem;
+        border: 1px solid #e0e0e0;
+        padding: 0.75rem;
+        font-size: 0.95rem;
+    }
+    
+    .form-control:focus {
+        border-color: #FF6B35;
+        box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+    }
+    
+    .input-group-text {
+        background: white;
+        border-right: none;
+    }
+    
+    #pickup_suggestions, #dropoff_suggestions {
+        border-radius: 0.5rem;
+    }
+    
+    .suggestion-item {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background-color 0.15s;
+    }
+    
+    .suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+
+    .maplibregl-popup-content {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        font-size: 0.9rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .maplibregl-marker {
+        animation: slideUp 0.3s ease-in-out;
+    }
+
+    @keyframes slideUp {
+        from { transform: translateY(10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Cursor pointer utility */
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    /* Highlight containers when edited */
+    #pickupDisplayContainer:hover, #dropoffDisplayContainer:hover {
+        background-color: #e8f4f8 !important;
+        border-color: #FF6B35 !important;
+    }
+
+    /* Error state for validation */
+    .location-error {
+        border-color: #dc3545 !important;
+        background-color: #fff5f5 !important;
+    }
+</style>
+
+<!-- MapLibre GL JS -->
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+
+<script>
+    let map;
+    let pickupMarker, dropoffMarker;
+    let pickupPopup, dropoffPopup;
+    let routeLine = null; // Track route polyline on map
+    const BASE_RATE = 10.00;
+    const PER_KM_RATE = 0.50;
+    const PER_MIN_RATE = 0.10;
+    const PER_KG_RATE = 2.00;
+    
+    // Track if route has been calculated
+    let routeCalculated = false;
+    
+    // Debouncing for geocoding requests
+    let geocodeTimeouts = {
+        pickup: null,
+        dropoff: null
+    };
+    
+    // Simple cache for geocoding results
+    const geocodeCache = new Map();
+
+    // New function for 2-step process
+    async function calculateDeliveryDetails() {
+        const pickupLat = document.getElementById('pickup_lat').value;
+        const pickupLng = document.getElementById('pickup_lng').value;
+        const dropoffLat = document.getElementById('latitude').value;
+        const dropoffLng = document.getElementById('longitude').value;
+        const weight = parseFloat(document.getElementById('weight').value) || 1;
+        const recipientName = document.getElementById('shipping_name').value;
+        const recipientPhone = document.getElementById('shipping_phone').value;
+
+        // Validate required fields
+        if (!pickupLat || !dropoffLat) {
+            showAlert('Please set both pickup and delivery locations', 'warning');
+            return;
+        }
+
+        if (!recipientName || !recipientPhone) {
+            showAlert('Please fill in recipient name and phone', 'warning');
+            return;
+        }
+
+        // Show loading state
+        const requestBtn = document.getElementById('requestBtn');
+        const originalText = requestBtn.innerHTML;
+        requestBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calculating...';
+        requestBtn.disabled = true;
+
+        try {
+            // Calculate route
+            const routeData = await calculateRoute();
+            
+            if (!routeData) {
+                throw new Error('Unable to calculate route. Please try different locations.');
+            }
+            
+            // Enable confirm button
+            const confirmBtn = document.getElementById('confirmBtn');
+            confirmBtn.disabled = false;
+            confirmBtn.style.opacity = '1';
+            
+            // Update request button to show completion
+            requestBtn.innerHTML = '<i class="fas fa-check me-2"></i>Quote Ready';
+            requestBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            
+            routeCalculated = true;
+            
+            showAlert('Delivery details calculated! You can now confirm your order.', 'success');
+            
+        } catch (error) {
+            console.error('Error calculating delivery details:', error);
+            showAlert('Failed to calculate delivery details: ' + error.message, 'danger');
+            
+            // Reset button state
+            requestBtn.innerHTML = originalText;
+            requestBtn.disabled = false;
+            requestBtn.style.background = 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)';
+        }
+    }
+
+    // Form validation before submission
+    function validateFormSubmission() {
+        if (!routeCalculated) {
+            showAlert('Please request a quote first before confirming your order', 'warning');
+            return false;
+        }
+
+        const pickupLat = document.getElementById('pickup_lat').value;
+        const dropoffLat = document.getElementById('latitude').value;
+        const recipientName = document.getElementById('shipping_name').value;
+        const recipientPhone = document.getElementById('shipping_phone').value;
+
+        if (!pickupLat || !dropoffLat) {
+            showAlert('Please set both pickup and delivery locations', 'warning');
+            return false;
+        }
+
+        if (!recipientName || !recipientPhone) {
+            showAlert('Please fill in recipient name and phone', 'warning');
+            return false;
+        }
+
+        // Show confirmation dialog
+        const cost = document.getElementById('estimatedCost').textContent;
+        const distance = document.getElementById('displayDistance').textContent;
+        const duration = document.getElementById('displayDuration').textContent;
+
+        const confirmMessage = `Please confirm your delivery order:\n\n` +
+            `Distance: ${distance}\n` +
+            `Duration: ${duration}\n` +
+            `Total Cost: GHS ${cost}\n\n` +
+            `Recipient: ${recipientName}\n` +
+            `Phone: ${recipientPhone}\n\n` +
+            `Do you want to proceed?`;
+
+        if (!confirm(confirmMessage)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    // Alert function for user feedback
+    function showAlert(message, type) {
+        // Remove existing alerts
+        const existingAlert = document.querySelector('.delivery-alert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+
+        // Create alert element
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show delivery-alert`;
+        alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1050; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(alertDiv);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+
+    // Track if route has been calculated
+    let mapClickMode = 'pickup'; // 'pickup' or 'dropoff' or 'idle'
+    
+    function initMap() {
+        map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    'osm': {
+                        type: 'raster',
+                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                        tileSize: 256,
+                        attribution: '© OpenStreetMap contributors'
+                    }
+                },
+                layers: [{
+                    id: 'osm',
+                    type: 'raster',
+                    source: 'osm'
+                }]
+            },
+            center: [-0.1870, 5.6037],
+            zoom: 12
+        });
+
+        map.addControl(new maplibregl.NavigationControl());
+
+        // Ensure the map sizes itself correctly when the container is visible
+        map.on('load', function() {
+            try { map.resize(); } catch (e) { console.warn('map resize failed', e); }
+        });
+
+        // Resize on window resize as well
+        window.addEventListener('resize', function() { if (map) { try { map.resize(); } catch(e) {} } });
+
+        map.on('click', function(e) {
+            const latlng = e.lngLat;
+            const coordStr = e.lngLat.lat.toFixed(4) + ', ' + e.lngLat.lng.toFixed(4);
+
+            // Only process map clicks if actively in a location selection mode
+            if (mapClickMode === 'pickup') {
+                setPickupLocation(e.lngLat.lat, e.lngLat.lng, coordStr);
+                mapClickMode = 'idle';
+                closePickupSearch();
+            } else if (mapClickMode === 'dropoff') {
+                setDropoffLocation(e.lngLat.lat, e.lngLat.lng, coordStr);
+                mapClickMode = 'idle';
+                closeDropoffSearch();
+            }
+        });
+
+        // Get current location as default pickup only if not already set
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const displayName = `Current location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+                // set after map load to avoid race conditions
+                if (map && map.loaded && map.loaded()) {
+                    setPickupLocation(lat, lng, displayName);
+                    map.setCenter([lng, lat]);
+                    try { map.resize(); } catch(e) {}
+                } else {
+                    map.on('load', function() {
+                        setPickupLocation(lat, lng, displayName);
+                        map.setCenter([lng, lat]);
+                        try { map.resize(); } catch(e) {}
+                    });
+                }
+            }, function(error) {
+                console.log('Geolocation error:', error);
+            });
+        }
+    }
+
+    // UI Control Functions
+    function editPickupLocation() {
+        document.getElementById('pickupSearchContainer').style.display = 'block';
+        document.getElementById('pickup_address').focus();
+        document.getElementById('pickup_address').select();
+        mapClickMode = 'pickup';
+    }
+
+    function closePickupSearch() {
+        document.getElementById('pickupSearchContainer').style.display = 'none';
+        mapClickMode = 'idle';
+        document.getElementById('pickup_suggestions').innerHTML = '';
+    }
+
+    function editDropoffLocation() {
+        document.getElementById('dropoffSearchContainer').style.display = 'block';
+        document.getElementById('shipping_address').focus();
+        document.getElementById('shipping_address').select();
+        mapClickMode = 'dropoff';
+    }
+
+    function closeDropoffSearch() {
+        document.getElementById('dropoffSearchContainer').style.display = 'none';
+        mapClickMode = 'idle';
+        document.getElementById('dropoff_suggestions').innerHTML = '';
+    }
+
+    function swapLocations() {
+        const pickupLat = document.getElementById('pickup_lat').value;
+        const pickupLng = document.getElementById('pickup_lng').value;
+        const pickupAddr = document.getElementById('pickup_address').value;
+        const pickupDisplay = document.getElementById('pickupLocationDisplay').textContent;
+
+        const dropoffLat = document.getElementById('latitude').value;
+        const dropoffLng = document.getElementById('longitude').value;
+        const dropoffAddr = document.getElementById('shipping_address').value;
+        const dropoffDisplay = document.getElementById('dropoffLocationDisplay').textContent;
+
+        // Check if both locations are set
+        if (!pickupLat || !dropoffLat) {
+            alert('Please set both pickup and delivery locations first');
+            return;
+        }
+
+        // Swap values
+        document.getElementById('pickup_lat').value = dropoffLat;
+        document.getElementById('pickup_lng').value = dropoffLng;
+        document.getElementById('pickup_address').value = dropoffAddr;
+        document.getElementById('pickupLocationDisplay').textContent = dropoffDisplay;
+
+        document.getElementById('latitude').value = pickupLat;
+        document.getElementById('longitude').value = pickupLng;
+        document.getElementById('shipping_address').value = pickupAddr;
+        document.getElementById('dropoffLocationDisplay').textContent = pickupDisplay;
+
+        // Redraw markers
+        if (pickupMarker) pickupMarker.remove();
+        if (dropoffMarker) dropoffMarker.remove();
+        if (pickupPopup) pickupPopup.remove();
+        if (dropoffPopup) dropoffPopup.remove();
+
+        // Redraw pickup marker with swapped values
+        const pickupPopupContent = document.createElement('div');
+        pickupPopupContent.innerHTML = `<strong style="color: #FF6B35;">📍 Pickup</strong><br><small>${dropoffDisplay}</small>`;
+        
+        pickupPopup = new maplibregl.Popup({ offset: 25 }).setDOMContent(pickupPopupContent);
+        
+        pickupMarker = new maplibregl.Marker({color: '#FF6B35'})
+            .setLngLat([parseFloat(dropoffLng), parseFloat(dropoffLat)])
+            .setPopup(pickupPopup)
+            .addTo(map);
+        
+        pickupMarker.togglePopup();
+
+        // Redraw dropoff marker with swapped values
+        const dropoffPopupContent = document.createElement('div');
+        dropoffPopupContent.innerHTML = `<strong style="color: #28a745;">📍 Delivery</strong><br><small>${pickupDisplay}</small>`;
+        
+        dropoffPopup = new maplibregl.Popup({ offset: 25 }).setDOMContent(dropoffPopupContent);
+        
+        dropoffMarker = new maplibregl.Marker({color: '#28a745'})
+            .setLngLat([parseFloat(pickupLng), parseFloat(pickupLat)])
+            .setPopup(dropoffPopup)
+            .addTo(map);
+        
+        dropoffMarker.togglePopup();
+
+        // Try to calculate route but don't throw errors
+        calculateRoute().catch(err => {
+        document.getElementById('pickup_lat').value = lat;
+        document.getElementById('pickup_lng').value = lng;
+        document.getElementById('pickupLocationDisplay').textContent = displayName;
+        
+        if (pickupMarker) pickupMarker.remove();
+        if (pickupPopup) pickupPopup.remove();
+
+        const popupContent = document.createElement('div');
+        popupContent.innerHTML = `<strong style="color: #FF6B35;">📍 Pickup</strong><br><small>${displayName}</small>`;
+        
+        pickupPopup = new maplibregl.Popup({ offset: 25 }).setDOMContent(popupContent);
+        
+        pickupMarker = new maplibregl.Marker({color: '#FF6B35'})
+            .setLngLat([lng, lat])
+            .setPopup(pickupPopup)
+            .addTo(map);
+        
+        pickupMarker.togglePopup();
+        closePickupSearch();
+        // Try to calculate route but don't throw errors
+            console.log('Auto route calculation failed:', err.message);
+        });
+    }
+
+    async function getAddressSuggestions(query, isPickup = false) {
+        // Clear existing timeout
+        const timeoutKey = isPickup ? 'pickup' : 'dropoff';
+        if (geocodeTimeouts[timeoutKey]) {
+            clearTimeout(geocodeTimeouts[timeoutKey]);
+        }
+        
+        // Set new timeout for debouncing (500ms delay)
+        geocodeTimeouts[timeoutKey] = setTimeout(async () => {
+            await performGeocode(query, isPickup);
+        }, 500);
+    }
+    
+    async function performGeocode(query, isPickup = false) {
+        if (query.length < 2) {
+            const suggestionsDiv = isPickup ? 
+                document.getElementById('pickup_suggestions') : 
+                document.getElementById('dropoff_suggestions');
+            suggestionsDiv.innerHTML = '';
+            return;
+        }
+
+        // Check cache first
+        const cacheKey = `${query}_${isPickup}`;
+        if (geocodeCache.has(cacheKey)) {
+            const cachedResults = geocodeCache.get(cacheKey);
+            displaySuggestions(cachedResults, isPickup);
+            return;
+        }
+
+        try {
+            // Get CSRF token from form
+            const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+            
+            // Use server-side proxy to avoid CORS issues
+            const response = await fetch(`/customer/geocode?q=${encodeURIComponent(query)}&limit=5&countrycodes=gh`, {
+                headers: csrfToken ? {'X-CSRFToken': csrfToken} : {}
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const results = await response.json();
+            
+            // Cache the results
+            geocodeCache.set(cacheKey, results);
+            
+            // Limit cache size
+            if (geocodeCache.size > 50) {
+                const firstKey = geocodeCache.keys().next().value;
+                geocodeCache.delete(firstKey);
+            }
+            
+            displaySuggestions(results, isPickup);
+            
+        } catch (error) {
+            console.error('Geocoding error:', error);
+            const suggestionsDiv = isPickup ? 
+                document.getElementById('pickup_suggestions') : 
+                document.getElementById('dropoff_suggestions');
+            
+            // Show error message
+            suggestionsDiv.innerHTML = `
+                <div class="suggestion-item text-muted">
+                    <small><i class="fas fa-exclamation-triangle"></i> Search temporarily unavailable - click on map to select location</small>
+                </div>
+            `;
+        }
+    }
+    
+    function displaySuggestions(results, isPickup) {
+        const suggestionsDiv = isPickup ? 
+            document.getElementById('pickup_suggestions') : 
+            document.getElementById('dropoff_suggestions');
+        suggestionsDiv.innerHTML = '';
+        
+        if (results.length > 0) {
+            results.forEach(result => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerHTML = `<small>${result.display_name}</small>`;
+                item.onclick = () => {
+                    if (isPickup) {
+                        setPickupLocation(parseFloat(result.lat), parseFloat(result.lon), result.display_name);
+                    } else {
+                        setDropoffLocation(parseFloat(result.lat), parseFloat(result.lon), result.display_name);
+                    }
+                };
+                suggestionsDiv.appendChild(item);
+            });
+        } else {
+            const emptyItem = document.createElement('div');
+            emptyItem.className = 'suggestion-item text-muted';
+            emptyItem.innerHTML = `<small><i class="fas fa-map"></i> No results - click on map or try another search</small>`;
+            emptyItem.style.pointerEvents = 'none';
+            suggestionsDiv.appendChild(emptyItem);
+        }
+    }
+
+    function setPickupLocation(lat, lng, displayName) {
+        document.getElementById('pickup_lat').value = lat;
+        document.getElementById('pickup_lng').value = lng;
+        document.getElementById('pickup_location').value = displayName;
+        document.getElementById('pickupLocationDisplay').textContent = displayName;
+        
+        if (pickupMarker) pickupMarker.remove();
+        if (pickupPopup) pickupPopup.remove();
+
+        const popupContent = document.createElement('div');
+        popupContent.innerHTML = `<strong style="color: #FF6B35;">📍 Pickup</strong><br><small>${displayName}</small>`;
+        
+        pickupPopup = new maplibregl.Popup({ offset: 25 }).setDOMContent(popupContent);
+        
+        pickupMarker = new maplibregl.Marker({color: '#FF6B35'})
+            .setLngLat([lng, lat])
+            .setPopup(pickupPopup)
+            .addTo(map);
+        
+        pickupMarker.togglePopup();
+        closePickupSearch();
+        // Try to calculate route but don't throw errors
+        calculateRoute().catch(err => {
+            console.log('Auto route calculation failed:', err.message);
+        });
+    }
+
+    function setDropoffLocation(lat, lng, displayName) {
+        document.getElementById('shipping_address').value = displayName;
+        document.getElementById('latitude').value = lat;
+        document.getElementById('longitude').value = lng;
+        document.getElementById('dropoff_location').value = displayName;
+        document.getElementById('dropoff_lat').value = lat;
+        document.getElementById('dropoff_lng').value = lng;
+        document.getElementById('dropoffLocationDisplay').textContent = displayName;
+        
+        if (dropoffMarker) dropoffMarker.remove();
+        if (dropoffPopup) dropoffPopup.remove();
+
+        const popupContent = document.createElement('div');
+        popupContent.innerHTML = `<strong style="color: #28a745;">📍 Delivery</strong><br><small>${displayName}</small>`;
+        
+        dropoffPopup = new maplibregl.Popup({ offset: 25 }).setDOMContent(popupContent);
+        
+        dropoffMarker = new maplibregl.Marker({color: '#28a745'})
+            .setLngLat([lng, lat])
+            .setPopup(dropoffPopup)
+            .addTo(map);
+        
+        dropoffMarker.togglePopup();
+        closeDropoffSearch();
+        // Try to calculate route but don't throw errors
+        calculateRoute().catch(err => {
+            console.log('Auto route calculation failed:', err.message);
+        });
+    }
+
+    // Detect Ghana region from coordinates using actual GraphML coverage bounds
+    function detectRegion(lat, lng) {
+        // Based on actual GraphML file coverage areas
+        // Each region has [lat_min, lat_max, lng_min, lng_max]
+        const regions = {
+            'Ahafo': [6.40, 7.18, -2.86, -2.25],
+            'Ashanti': [5.87, 7.59, -2.42, -0.57],
+            'Bono': [6.88, 8.40, -3.09, -1.93],
+            'Bono_East': [7.34, 8.76, -2.12, -0.13],
+            'Central': [5.04, 6.27, -2.16, -0.40],
+            'Eastern': [5.71, 6.87, -1.23, 0.14],
+            'Greater_Accra': [5.48, 6.10, -0.51, 0.65],
+            'Northern': [8.24, 10.30, -1.30, 0.57],
+            'North_East': [9.94, 10.65, -1.17, 0.40],
+            'Oti': [7.10, 8.75, 0.09, 0.65],
+            'Savannah': [8.16, 9.83, -2.75, -0.15],
+            'Upper_East': [10.33, 11.16, -1.49, 0.03],
+            'Upper_West': [9.68, 11.00, -2.94, -1.49],
+            'Volta': [5.77, 7.19, 0.12, 1.20],
+            'Western': [4.74, 5.78, -3.53, -2.74],  // Western region not in list, using estimate
+            'Western_North': [5.38, 6.97, -3.25, -2.14]
+        };
+        
+        // Find which region contains these coordinates
+        for (let [region, [lat_min, lat_max, lng_min, lng_max]] of Object.entries(regions)) {
+            if (lat >= lat_min && lat <= lat_max && lng >= lng_min && lng <= lng_max) {
+                return region;
+            }
+        }
+        
+        // If not in any defined region, return null (will fallback to interpolation)
+        return null;
+    }
+
+    async function calculateRoute() {
+        const pickupLat = document.getElementById('pickup_lat').value;
+        const pickupLng = document.getElementById('pickup_lng').value;
+        const dropoffLat = document.getElementById('latitude').value;
+        const dropoffLng = document.getElementById('longitude').value;
+        const weight = parseFloat(document.getElementById('weight').value) || 1;
+
+        // Only calculate if both locations are set
+        if (!pickupLat || !dropoffLat) {
+            console.log('Route calculation skipped - missing locations');
+            return null; // Return null instead of throwing error
+        }
+
+        try {
+            // Detect region from DROPOFF location (destination), not pickup
+            // This ensures we use the region that contains the delivery endpoint
+            const driver_region = detectRegion(parseFloat(dropoffLat), parseFloat(dropoffLng)) ||
+                                  detectRegion(parseFloat(pickupLat), parseFloat(pickupLng)) ||
+                                  'Northern'; // Fallback to Northern if no region detected
+            console.log(`Detected region: ${driver_region} from dropoff: (${dropoffLat}, ${dropoffLng})`);
+
+            const response = await fetch('/route', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+                },
+                body: JSON.stringify({
+                    pickup_lat: parseFloat(pickupLat),
+                    pickup_lng: parseFloat(pickupLng),
+                    dropoff_lat: parseFloat(dropoffLat),
+                    dropoff_lng: parseFloat(dropoffLng),
+                    driver_region: driver_region,
+                    alternatives: 1
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const routeData = await response.json();
+            
+            if (routeData.distance_km && routeData.duration_minutes) {
+                const distance = routeData.distance_km;
+                const duration = routeData.duration_minutes;
+                
+                document.getElementById('distance_km').value = distance;
+                document.getElementById('duration_minutes').value = duration;
+                
+                const cost = BASE_RATE + (distance * PER_KM_RATE) + (duration * PER_MIN_RATE) + (weight * PER_KG_RATE);
+                document.getElementById('total_amount').value = cost.toFixed(2);
+                
+                document.getElementById('displayDistance').textContent = distance.toFixed(1) + ' km';
+                document.getElementById('displayDuration').textContent = Math.round(duration) + ' min';
+                document.getElementById('displayCost').textContent = 'GHS ' + cost.toFixed(2);
+                document.getElementById('estimatedCost').textContent = cost.toFixed(2);
+                
+                // Draw route on map - using real road data
+                if (routeData.primary && routeData.primary.coordinates) {
+                    drawRouteOnMap(routeData.primary.coordinates);
+                }
+                
+                // Fit map bounds to show both markers and route
+                if (pickupMarker && dropoffMarker) {
+                    const bounds = new maplibregl.LngLatBounds();
+                    bounds.extend([parseFloat(pickupLng), parseFloat(pickupLat)]);
+                    bounds.extend([parseFloat(dropoffLng), parseFloat(dropoffLat)]);
+                    
+                    // Expand bounds if route coordinates exist
+                    if (routeData.primary && routeData.primary.coordinates) {
+                        routeData.primary.coordinates.forEach(point => {
+                            bounds.extend(point); // Already in [lng, lat] format
+                        });
+                    }
+                    
+                    map.fitBounds(bounds, {padding: 100});
+                }
+                
+                return routeData;
+            } else {
+                throw new Error('Invalid route data received');
+            }
+        } catch (error) {
+            console.error('Route calculation error:', error);
+            showAlert('Route calculation failed: ' + error.message, 'danger');
+            return null;
+        }
+    }
+    
+    function drawRouteOnMap(waypoints) {
+        console.log('[ROUTE_DEBUG] drawRouteOnMap called with waypoints:', waypoints);
+        
+        if (!waypoints || !Array.isArray(waypoints) || waypoints.length < 2) {
+            console.error('[ROUTE_DEBUG] Invalid waypoints:', waypoints);
+            return;
+        }
+        
+        // Validate coordinates
+        for (let i = 0; i < waypoints.length; i++) {
+            const point = waypoints[i];
+            if (!Array.isArray(point) || point.length !== 2 || 
+                typeof point[0] !== 'number' || typeof point[1] !== 'number' ||
+                isNaN(point[0]) || isNaN(point[1])) {
+                console.error('[ROUTE_DEBUG] Invalid coordinate at index', i, ':', point);
+                return;
+            }
+        }
+        
+        if (!map.isStyleLoaded()) {
+            console.log('[ROUTE_DEBUG] Map style not loaded yet, waiting...');
+            map.once('style.load', () => drawRouteOnMap(waypoints));
+            return;
+        }
+        
+        // Remove existing route line if present
+        if (map.getSource('route')) {
+            console.log('[ROUTE_DEBUG] Removing existing route source and layer');
+            map.removeLayer('route');
+            map.removeSource('route');
+        }
+        
+        // Create GeoJSON LineString from waypoints
+        // Go service returns coordinates in [lng, lat] format, which is what MapLibre GL needs
+        const coordinates = waypoints;
+        console.log('[ROUTE_DEBUG] Using coordinates:', coordinates);
+        
+        const geojson = {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: coordinates
+            }
+        };
+        
+        console.log('[ROUTE_DEBUG] Created GeoJSON:', geojson);
+        
+        try {
+            // Add source
+            map.addSource('route', {
+                type: 'geojson',
+                data: geojson
+            });
+            console.log('[ROUTE_DEBUG] Added route source successfully');
+            
+            // Add layer for the route line (solid green for real routes)
+            map.addLayer({
+                id: 'route',
+                type: 'line',
+                source: 'route',
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                paint: {
+                    'line-color': '#28a745',
+                    'line-width': 4,
+                    'line-opacity': 0.8
+                }
+            });
+            console.log('[ROUTE_DEBUG] Added route layer successfully');
+            
+            // Force a map render
+            map.triggerRepaint();
+        } catch (error) {
+            console.error('[ROUTE_DEBUG] Error adding route to map:', error);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initMap();
+
+        // Service type change handler
+        const serviceTypeRadios = document.querySelectorAll('input[name="service_type"]');
+        const shippingNameField = document.getElementById('shipping_name');
+        const nameLabel = document.getElementById('nameLabel');
+        const customerName = document.getElementById('customer_name').value;
+        
+        serviceTypeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const typeDescription = document.getElementById('typeDescription');
+                document.getElementById('service_type_hidden').value = this.value;
+                
+                if (this.value === 'package_delivery') {
+                    typeDescription.textContent = 'Send packages and parcels to any location in Ghana';
+                    nameLabel.textContent = 'RECIPIENT NAME';
+                    shippingNameField.placeholder = 'Enter recipient name';
+                    shippingNameField.value = '';
+                    shippingNameField.readOnly = false;
+                    shippingNameField.disabled = false;
+                    shippingNameField.style.backgroundColor = '';
+                    shippingNameField.style.cursor = 'text';
+                } else {
+                    typeDescription.textContent = 'Transport yourself or your group to a specific location';
+                    nameLabel.textContent = 'YOUR NAME';
+                    shippingNameField.placeholder = 'Your name (auto-filled)';
+                    shippingNameField.value = customerName;
+                    shippingNameField.readOnly = true;
+                    shippingNameField.disabled = false;
+                    shippingNameField.style.backgroundColor = '#f8f9fa';
+                    shippingNameField.style.cursor = 'not-allowed';
+                }
+            });
+        });
+
+        // Close search panels when clicking outside
+        document.addEventListener('click', function(event) {
+            const pickupContainer = document.getElementById('pickupDisplayContainer');
+            const pickupSearch = document.getElementById('pickupSearchContainer');
+            const dropoffContainer = document.getElementById('dropoffDisplayContainer');
+            const dropoffSearch = document.getElementById('dropoffSearchContainer');
+
+            if (!pickupContainer.contains(event.target) && !pickupSearch.contains(event.target)) {
+                closePickupSearch();
+            }
+            if (!dropoffContainer.contains(event.target) && !dropoffSearch.contains(event.target)) {
+                closeDropoffSearch();
+            }
+        });
+
+        document.getElementById('weight').addEventListener('change', function() {
+            // Try to recalculate route but don't throw errors
+            calculateRoute().catch(err => {
+                console.log('Route recalculation on weight change failed:', err.message);
+            });
+        });
+
+        // Initialize name field state based on default service type
+        const defaultServiceType = document.querySelector('input[name="service_type"]:checked').value;
+        if (defaultServiceType === 'package_delivery') {
+            shippingNameField.value = '';
+            shippingNameField.readOnly = false;
+            shippingNameField.style.backgroundColor = '';
+        } else {
+            shippingNameField.value = customerName;
+            shippingNameField.readOnly = true;
+            shippingNameField.style.backgroundColor = '#f8f9fa';
+        }
+    });
+</script>
+{% endblock %}
