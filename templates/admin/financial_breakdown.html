@@ -1,0 +1,524 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Financial Breakdown - Admin{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-chart-pie"></i> Financial Breakdown & Reporting
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <select class="form-select form-select-sm" style="width: 150px;" id="timeframeSelect" onchange="changeTimeframe()">
+        <option value="7days" {% if timeframe == '7days' %}selected{% endif %}>Last 7 Days</option>
+        <option value="30days" {% if timeframe == '30days' %}selected{% endif %}>Last 30 Days</option>
+        <option value="90days" {% if timeframe == '90days' %}selected{% endif %}>Last 90 Days</option>
+        <option value="all" {% if timeframe == 'all' %}selected{% endif %}>All Time</option>
+    </select>
+    <a href="{{ url_for('admin.analytics') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Analytics
+    </a>
+    <button class="btn btn-sm btn-primary" onclick="exportFinancialReport()">
+        <i class="fas fa-download"></i> Export CSV
+    </button>
+</div>
+{% endblock %}
+
+{% block main_content %}
+<style>
+    .financial-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        border-left: 4px solid #3b82f6;
+    }
+
+    .financial-card.customer { border-left-color: #3b82f6; }
+    .financial-card.driver { border-left-color: #10b981; }
+    .financial-card.platform { border-left-color: #f59e0b; }
+    .financial-card.pending { border-left-color: #ef4444; }
+
+    .financial-card h6 {
+        color: #64748b;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .financial-card .amount {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0.5rem 0;
+    }
+
+    .financial-card .subtitle {
+        font-size: 0.875rem;
+        color: #94a3b8;
+        margin-top: 0.5rem;
+    }
+
+    .summary-row {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .summary-row .financial-card {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .breakdown-table {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .breakdown-table h5 {
+        margin-bottom: 1.5rem;
+        color: #1e293b;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .breakdown-table h5 i {
+        color: #3b82f6;
+    }
+
+    .breakdown-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .breakdown-table th {
+        background-color: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .breakdown-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .breakdown-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .amount-cell {
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: #1e293b;
+    }
+
+    .daily-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.875rem;
+    }
+
+    .daily-row:last-child {
+        border-bottom: none;
+    }
+
+    .daily-label {
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .daily-values {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .daily-value {
+        text-align: right;
+        color: #1e293b;
+        font-weight: 600;
+        min-width: 120px;
+    }
+
+    .status-tag {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background-color: #f0fdf4;
+        color: #166534;
+        border-radius: 0.35rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-tag.pending {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+
+    .revenue-breakdown {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .revenue-item {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border-left: 3px solid #3b82f6;
+    }
+
+    .revenue-item.driver { border-left-color: #10b981; }
+    .revenue-item.platform { border-left-color: #f59e0b; }
+    .revenue-item.tips { border-left-color: #8b5cf6; }
+
+    .revenue-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .revenue-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .alert-info-custom {
+        background-color: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        color: #1e40af;
+    }
+
+    .alert-info-custom i {
+        margin-right: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .summary-row {
+            flex-direction: column;
+        }
+
+        .summary-row .financial-card {
+            min-width: 100%;
+        }
+
+        .daily-values {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .daily-value {
+            text-align: left;
+            min-width: auto;
+        }
+    }
+</style>
+
+<!-- Alert -->
+<div class="alert-info-custom">
+    <i class="fas fa-info-circle"></i>
+    This page shows only <strong>completed and verified transactions</strong>. Pending orders and deliveries are excluded from revenue calculations until they are successfully completed.
+</div>
+
+<!-- Summary Cards -->
+<div class="summary-row">
+    <div class="financial-card customer">
+        <h6>Customer Revenue</h6>
+        <div class="amount">₵{{ "%.2f"|format(total_customer_revenue) }}</div>
+        <div class="subtitle">From {{ total_completed_deliveries }} completed deliveries</div>
+    </div>
+
+    <div class="financial-card driver">
+        <h6>Driver Payouts</h6>
+        <div class="amount">₵{{ "%.2f"|format(total_driver_earnings) }}</div>
+        <div class="subtitle">{{ "%.1f"|format((total_driver_earnings / total_customer_revenue * 100) if total_customer_revenue > 0 else 0) }}% of revenue</div>
+    </div>
+
+    <div class="financial-card platform">
+        <h6>Platform Fees</h6>
+        <div class="amount">₵{{ "%.2f"|format(total_platform_fees) }}</div>
+        <div class="subtitle">{{ "%.1f"|format((total_platform_fees / total_customer_revenue * 100) if total_customer_revenue > 0 else 0) }}% of revenue</div>
+    </div>
+
+    <div class="financial-card pending">
+        <h6>Pending Revenue</h6>
+        <div class="amount">₵{{ "%.2f"|format(pending_revenue) }}</div>
+        <div class="subtitle">From {{ total_pending_deliveries }} pending deliveries</div>
+    </div>
+</div>
+
+<!-- Revenue Breakdown -->
+<div class="breakdown-table">
+    <h5><i class="fas fa-dollar-sign"></i> Revenue Composition</h5>
+    <div class="revenue-breakdown">
+        <div class="revenue-item">
+            <div class="revenue-label">Total Customer Revenue</div>
+            <div class="revenue-amount">₵{{ "%.2f"|format(total_customer_revenue) }}</div>
+        </div>
+        <div class="revenue-item driver">
+            <div class="revenue-label">Driver Earnings</div>
+            <div class="revenue-amount">₵{{ "%.2f"|format(total_driver_earnings) }}</div>
+        </div>
+        <div class="revenue-item platform">
+            <div class="revenue-label">Platform Fees</div>
+            <div class="revenue-amount">₵{{ "%.2f"|format(total_platform_fees) }}</div>
+        </div>
+        <div class="revenue-item tips">
+            <div class="revenue-label">Tips & Bonuses</div>
+            <div class="revenue-amount">₵{{ "%.2f"|format(total_tips + total_bonuses) }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Commission Configuration Link -->
+<div class="alert-info-custom" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 1rem; border-radius: 0.5rem; margin-bottom: 2rem;">
+    <i class="fas fa-sliders-h" style="margin-right: 0.5rem;"></i>
+    <strong>Current Configuration:</strong> Driver: {{ driver_commission }}% | Platform: {{ platform_commission }}% | 
+    <a href="{{ url_for('admin.pricing_configuration') }}" style="color: #1e40af; text-decoration: underline; font-weight: 600;">📊 View Pricing Settings</a>
+</div>
+
+<!-- Revenue Sources Breakdown -->
+<div class="breakdown-table">
+    <h5><i class="fas fa-stream"></i> Revenue Sources Breakdown</h5>
+    <div class="revenue-breakdown">
+        <div class="revenue-item">
+            <div class="revenue-label">Base Fares</div>
+            <div class="revenue-amount">₵{{ "%.2f"|format(total_customer_revenue - total_tips - total_surge_revenue - total_wait_time_fees) }}</div>
+            <small style="color: #94a3b8;">Core delivery charges</small>
+        </div>
+        <div class="revenue-item tips">
+            <div class="revenue-label">Tips</div>
+            <div class="revenue-amount">₵{{ "%.2f"|format(total_tips) }}</div>
+            <small style="color: #94a3b8;">Voluntary customer tips (100% to driver)</small>
+        </div>
+        <div class="revenue-item platform">
+            <div class="revenue-label">Surge Revenue</div>
+            <div class="revenue-amount">₵{{ "%.2f"|format(total_surge_revenue) }}</div>
+            <small style="color: #94a3b8;">Peak hour multiplier income</small>
+        </div>
+        <div class="revenue-item">
+            <div class="revenue-label">Wait Time Fees</div>
+            <div class="revenue-amount">₵{{ "%.2f"|format(total_wait_time_fees) }}</div>
+            <small style="color: #94a3b8;">Customer waiting charges</small>
+        </div>
+    </div>
+</div>
+
+<!-- Earnings Distribution -->
+<div class="breakdown-table">
+    <h5><i class="fas fa-chart-pie"></i> Earnings Distribution Detail</h5>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+        <div style="padding: 1rem; background: #f0fdf4; border-radius: 0.5rem; border-left: 3px solid #10b981;">
+            <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">Driver Base Commission</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">₵{{ "%.2f"|format((total_customer_revenue - total_tips - total_surge_revenue - total_wait_time_fees) * (driver_commission / 100)) }}</div>
+            <small style="color: #64748b;">{{ driver_commission }}% of base fares</small>
+        </div>
+        <div style="padding: 1rem; background: #fef3c7; border-radius: 0.5rem; border-left: 3px solid #f59e0b;">
+            <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">Driver Bonuses</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #92400e;">₵{{ "%.2f"|format(total_bonuses) }}</div>
+            <small style="color: #64748b;">Performance incentives</small>
+        </div>
+        <div style="padding: 1rem; background: #8b5cf6; border-radius: 0.5rem; border-left: 3px solid #7c3aed; color: white;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem; opacity: 0.9;">Driver Tips</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">₵{{ "%.2f"|format(total_tips) }}</div>
+            <small style="opacity: 0.8;">Customer appreciation (100%)</small>
+        </div>
+        <div style="padding: 1rem; background: #dbeafe; border-radius: 0.5rem; border-left: 3px solid #3b82f6;">
+            <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">Platform Fees</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #1e40af;">₵{{ "%.2f"|format(total_platform_fees) }}</div>
+            <small style="color: #64748b;">{{ platform_commission }}% of base + surge share</small>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Methods -->
+<div class="breakdown-table">
+    <h5><i class="fas fa-credit-card"></i> Revenue by Payment Method</h5>
+    <table>
+        <thead>
+            <tr>
+                <th>Payment Method</th>
+                <th style="text-align: center;">Transactions</th>
+                <th style="text-align: right;">Revenue</th>
+                <th style="text-align: right;">% of Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if payment_data %}
+                {% set total_revenue_all = payment_data|map(attribute='revenue')|sum %}
+                {% for payment in payment_data %}
+                    <tr>
+                        <td>
+                            <i class="fas fa-{% if 'card' in payment.method.lower() %}credit-card{% elif 'mobile' in payment.method.lower() %}mobile-alt{% else %}money-bill-wave{% endif %}" style="color: #3b82f6; margin-right: 0.5rem;"></i>
+                            {{ payment.method }}
+                        </td>
+                        <td style="text-align: center;">{{ payment.count }}</td>
+                        <td style="text-align: right;" class="amount-cell">₵{{ "%.2f"|format(payment.revenue) }}</td>
+                        <td style="text-align: right;">{{ "%.1f"|format((payment.revenue / total_revenue_all * 100) if total_revenue_all > 0 else 0) }}%</td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No completed transactions yet</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Top Earning Drivers -->
+<div class="breakdown-table">
+    <h5><i class="fas fa-users"></i> Top Earning Drivers</h5>
+    <table>
+        <thead>
+            <tr>
+                <th>Driver</th>
+                <th style="text-align: center;">Deliveries</th>
+                <th style="text-align: right;">Total Earnings</th>
+                <th style="text-align: right;">Avg per Delivery</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if top_drivers %}
+                {% for driver in top_drivers %}
+                    <tr>
+                        <td><strong>{{ driver.name }}</strong></td>
+                        <td style="text-align: center;">{{ driver.deliveries }}</td>
+                        <td style="text-align: right;" class="amount-cell">₵{{ "%.2f"|format(driver.total_earnings) }}</td>
+                        <td style="text-align: right;">₵{{ "%.2f"|format(driver.avg_earning) }}</td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No driver data available</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Daily Breakdown -->
+<div class="breakdown-table">
+    <h5><i class="fas fa-calendar"></i> Daily Financial Summary</h5>
+    <div style="max-height: 400px; overflow-y: auto;">
+        {% if daily_data %}
+            {% for day in daily_data|reverse %}
+                <div class="daily-row">
+                    <div class="daily-label">
+                        <strong>{{ day.date }}</strong>
+                        <br><small style="color: #94a3b8;">{{ day.deliveries }} deliveries</small>
+                    </div>
+                    <div class="daily-values">
+                        <div class="daily-value">
+                            <small style="color: #94a3b8;">Revenue</small>
+                            <br><strong>₵{{ "%.2f"|format(day.revenue) }}</strong>
+                        </div>
+                        <div class="daily-value">
+                            <small style="color: #94a3b8;">Driver Payout</small>
+                            <br>₵{{ "%.2f"|format(day.driver_payout) }}
+                        </div>
+                        <div class="daily-value">
+                            <small style="color: #94a3b8;">Tips</small>
+                            <br><span style="color: #8b7355;">₵{{ "%.2f"|format(day.tips if day.tips else 0) }}</span>
+                        </div>
+                        <div class="daily-value">
+                            <small style="color: #94a3b8;">Bonuses</small>
+                            <br><span style="color: #7c3aed;">₵{{ "%.2f"|format(day.bonuses if day.bonuses else 0) }}</span>
+                        </div>
+                        <div class="daily-value">
+                            <small style="color: #94a3b8;">Platform Fees</small>
+                            <br><span style="color: #f97316;">₵{{ "%.2f"|format(day.platform_fees) }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+                No completed deliveries in this period
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function changeTimeframe() {
+    const timeframe = document.getElementById('timeframeSelect').value;
+    window.location.href = `?timeframe=${timeframe}`;
+}
+
+function exportFinancialReport() {
+    const timeframe = document.getElementById('timeframeSelect').value;
+    
+    // Prepare CSV data
+    const csvContent = `Financial Breakdown Report
+Generated: ${new Date().toLocaleString()}
+Timeframe: ${timeframe}
+
+SUMMARY
+Customer Revenue (Completed Only),₵{{ "%.2f"|format(total_customer_revenue) }}
+Driver Payouts,₵{{ "%.2f"|format(total_driver_earnings) }}
+Platform Fees,₵{{ "%.2f"|format(total_platform_fees) }}
+Tips & Bonuses,₵{{ "%.2f"|format(total_tips + total_bonuses) }}
+Pending Revenue (Not Counted),₵{{ "%.2f"|format(pending_revenue) }}
+
+BREAKDOWN BY PAYMENT METHOD
+Payment Method,Transactions,Revenue,Percentage
+{% for payment in payment_data %}{{ payment.method }},{{ payment.count }},₵{{ "%.2f"|format(payment.revenue) }},{{ "%.1f"|format((payment.revenue / (payment_data|map(attribute='revenue')|sum) * 100) if (payment_data|map(attribute='revenue')|sum) > 0 else 0) }}%
+{% endfor %}
+
+TOP EARNING DRIVERS
+Driver Name,Deliveries,Total Earnings,Avg per Delivery
+{% for driver in top_drivers %}{{ driver.name }},{{ driver.deliveries }},₵{{ "%.2f"|format(driver.total_earnings) }},₵{{ "%.2f"|format(driver.avg_earning) }}
+{% endfor %}`;
+
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `financial_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+
+{% endblock %}
