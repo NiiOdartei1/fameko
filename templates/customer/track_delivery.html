@@ -1,0 +1,1730 @@
+{% extends "customer/base_customer.html" %}
+
+{% block title %}Track Delivery #{{ delivery.id }}{% endblock %}
+
+{% block content %}
+
+<!-- Google Font -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+  :root {
+    --font: 'Outfit', sans-serif;
+    --header-h: 64px;
+    --sheet-peek: 148px;   /* how much of the bottom sheet peeks up */
+    --radius-lg: 24px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --amber: #d97706;
+    --red: #dc2626;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,.14);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: #e9ecef;
+    overflow: hidden;   /* no page scroll; sheet scrolls internally */
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── HEADER ─────────────────────────────────────── */
+  .trk-header {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: var(--header-h);
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  }
+
+  .trk-header__back {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.1);
+    border: none;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .2s;
+  }
+  .trk-header__back:hover { background: rgba(255,255,255,.18); }
+
+  .trk-header__title { flex: 1; min-width: 0; }
+  .trk-header__title h1 {
+    font-size: 16px; font-weight: 700; color: #fff;
+    line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .trk-header__badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 3px;
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    animation: blink 2s infinite;
+    flex-shrink: 0;
+  }
+  .status-dot-text { font-size: 12px; color: rgba(255,255,255,.75); font-weight: 500; }
+
+  .trk-header__eta {
+    font-size: 13px; color: rgba(255,255,255,.8); font-weight: 500;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .trk-header__eta i { margin-right: 4px; }
+
+  .trk-header__share {
+    padding: 0 14px; height: 34px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 20px;
+    color: #fff; font-size: 13px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+    flex-shrink: 0;
+    transition: background .2s;
+  }
+  .trk-header__share:hover { background: rgba(255,255,255,.2); }
+
+  /* ── MAP ─────────────────────────────────────────── */
+  .map-wrap {
+    position: fixed;
+    inset: var(--header-h) 0 0 0;
+    z-index: 1;
+  }
+  #map { width: 100%; height: 100%; }
+
+  /* ── MAP CONTROLS ────────────────────────────────── */
+  .map-controls {
+    position: absolute;
+    top: 16px; right: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 500;
+  }
+  .map-btn {
+    width: 44px; height: 44px;
+    background: #fff;
+    border-radius: 12px;
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--gray-700);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .map-btn:hover { transform: scale(1.06); box-shadow: var(--shadow-lg); }
+  .map-btn:active { transform: scale(.96); }
+
+  /* ── DRIVER CARD (floating on map) ───────────────── */
+  .driver-card {
+    position: absolute;
+    top: 16px; left: 16px; right: 76px;  /* leave space for controls */
+    max-width: 340px;
+    background: rgba(255,255,255,.97);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    box-shadow: var(--shadow-lg);
+    display: none;  /* shown via JS */
+    align-items: center;
+    gap: 12px;
+    z-index: 500;
+    animation: slideDown .35s cubic-bezier(.4,0,.2,1);
+  }
+
+  .driver-avatar {
+    position: relative; flex-shrink: 0;
+  }
+  .driver-avatar img {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    object-fit: cover;
+    display: block;
+  }
+  .online-dot {
+    position: absolute; bottom: 1px; right: 1px;
+    width: 13px; height: 13px;
+    background: var(--green);
+    border: 2px solid #fff;
+    border-radius: 50%;
+  }
+
+  .driver-info { flex: 1; min-width: 0; }
+  .driver-info__name {
+    font-size: 14px; font-weight: 700; color: var(--gray-900);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .driver-info__vehicle {
+    font-size: 12px; color: var(--gray-500); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .driver-info__rating {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 600; color: var(--amber);
+    margin-top: 4px;
+  }
+
+  .driver-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .driver-action-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--gray-100);
+    border: none;
+    color: var(--gray-700);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; cursor: pointer;
+    transition: background .2s, transform .15s;
+  }
+  .driver-action-btn:hover { background: var(--blue-light); color: var(--blue); transform: scale(1.08); }
+
+  /* ── BOTTOM SHEET ─────────────────────────────────── */
+  .bottom-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -6px 32px rgba(0,0,0,.12);
+    z-index: 800;
+    /* Default: peek state */
+    transform: translateY(calc(100% - var(--sheet-peek)));
+    transition: transform .4s cubic-bezier(.4,0,.2,1);
+    /* Allow internal scrolling */
+    max-height: calc(100vh - var(--header-h) - 40px);
+    display: flex;
+    flex-direction: column;
+  }
+  .bottom-sheet.expanded {
+    transform: translateY(0);
+  }
+
+  /* Drag handle */
+  .sheet-handle {
+    padding: 12px 0 4px;
+    text-align: center; cursor: pointer; flex-shrink: 0;
+  }
+  .sheet-handle__bar {
+    width: 40px; height: 4px;
+    background: var(--gray-200); border-radius: 2px;
+    margin: 0 auto;
+    transition: background .2s;
+  }
+  .sheet-handle:hover .sheet-handle__bar { background: var(--gray-400); }
+
+  /* Sheet scrollable body */
+  .sheet-body {
+    overflow-y: auto;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── STATUS ROW ─────────────────────────────────── */
+  .status-row {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px;
+    padding: 4px 20px 16px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .status-row__left h5 {
+    font-size: 18px; font-weight: 700; color: var(--gray-900); line-height: 1.2;
+  }
+  .status-row__left p {
+    font-size: 13px; color: var(--gray-500); margin-top: 4px;
+  }
+  .status-row__right { flex-shrink: 0; text-align: right; }
+  .status-row__time {
+    font-size: 22px; font-weight: 700; color: var(--blue); line-height: 1;
+  }
+  .status-row__label {
+    font-size: 11px; color: var(--gray-400); text-transform: uppercase;
+    letter-spacing: .6px; margin-top: 3px; font-weight: 500;
+  }
+
+  /* ── PROGRESS STEPS ─────────────────────────────── */
+  .progress-steps {
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .steps-track {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  /* Connector line behind all steps */
+  .steps-track::before {
+    content: '';
+    position: absolute;
+    top: 20px;                  /* half of icon height (40px) */
+    left: calc(10% + 8px);     /* start after first icon centre */
+    right: calc(10% + 8px);    /* end before last icon centre */
+    height: 2px;
+    background: var(--gray-200);
+    z-index: 0;
+  }
+
+  .step {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step__icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--gray-200);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    color: var(--gray-400);
+    transition: all .3s cubic-bezier(.4,0,.2,1);
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step.completed .step__icon {
+    background: var(--green); border-color: var(--green);
+    color: #fff;
+  }
+  .step.active .step__icon {
+    background: var(--blue); border-color: var(--blue);
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(37,99,235,.15);
+    animation: activePulse 2s infinite;
+  }
+
+  .step__label {
+    font-size: 11px; font-weight: 600; color: var(--gray-500);
+    line-height: 1.3;
+    max-width: 60px;
+  }
+  .step.completed .step__label,
+  .step.active .step__label { color: var(--gray-900); }
+
+  .step__time {
+    font-size: 10px; color: var(--gray-400); font-weight: 500; margin-top: 2px;
+  }
+
+  /* Progress fill overlay — JS will update this */
+  .steps-fill {
+    position: absolute;
+    top: 20px;
+    left: calc(10% + 8px);
+    height: 2px;
+    background: var(--green);
+    z-index: 0;
+    transition: width .5s ease;
+    width: 0;
+  }
+
+  /* ── DELIVERY INFO ──────────────────────────────── */
+  .delivery-info { padding: 20px; border-bottom: 1px solid var(--gray-100); }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .7px; color: var(--gray-400);
+    margin-bottom: 14px;
+  }
+
+  .location-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: var(--gray-50);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+  .location-item:last-of-type { margin-bottom: 0; }
+
+  .location-dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .location-dot.pickup  { background: #fee2e2; color: var(--red); }
+  .location-dot.dropoff { background: var(--green-light); color: var(--green); }
+
+  .location-text { flex: 1; min-width: 0; }
+  .location-text__label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--gray-400); margin-bottom: 2px;
+  }
+  .location-text__value {
+    font-size: 14px; font-weight: 500; color: var(--gray-900);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ── STATS ──────────────────────────────────────── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    padding: 16px 20px 20px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .stat-card {
+    background: var(--gray-50);
+    border-radius: var(--radius-sm);
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .stat-card__value {
+    font-size: 18px; font-weight: 700; color: var(--gray-900); line-height: 1;
+  }
+  .stat-card__label {
+    font-size: 11px; color: var(--gray-500); font-weight: 500;
+    text-transform: uppercase; letter-spacing: .4px; margin-top: 5px;
+  }
+
+  /* ── ACTION BUTTONS ─────────────────────────────── */
+  .action-area {
+    padding: 16px 20px 24px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .btn-action {
+    width: 100%; padding: 14px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; border: none;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity .2s, transform .15s, box-shadow .15s;
+  }
+  .btn-action:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .btn-action:active { transform: translateY(0); }
+  .btn-action--outline {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700);
+  }
+  .btn-action--primary {
+    background: var(--blue);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(37,99,235,.25);
+  }
+
+  /* ── SHARE MODAL ─────────────────────────────────── */
+  .modal-content { border-radius: var(--radius-lg); border: none; font-family: var(--font); }
+  .modal-header { border-bottom: 1px solid var(--gray-100); padding: 20px 24px 16px; }
+  .modal-header h5 { font-size: 17px; font-weight: 700; }
+  .modal-body { padding: 20px 24px 28px; }
+  .share-btn {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    font-family: var(--font); font-size: 15px; font-weight: 500;
+    color: var(--gray-900); cursor: pointer; margin-bottom: 8px;
+    transition: background .2s;
+  }
+  .share-btn:last-child { margin-bottom: 0; }
+  .share-btn:hover { background: var(--gray-100); }
+  .share-btn i { width: 20px; text-align: center; }
+
+  /* ── CUSTOM MAP MARKERS ─────────────────────────── */
+  .marker-driver {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 18px;
+    box-shadow: 0 4px 14px rgba(37,99,235,.45);
+  }
+  .marker-driver.active { animation: driverBounce 2s infinite; }
+  .marker-pickup {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--red);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 15px;
+    box-shadow: 0 4px 12px rgba(220,38,38,.35);
+  }
+  .marker-dropoff {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 15px;
+    box-shadow: 0 4px 12px rgba(22,163,74,.35);
+  }
+
+  .completion-popup {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.4); z-index: 9999;
+    animation: fadeIn .3s;
+  }
+  .completion-popup__box {
+    background: #fff; border-radius: var(--radius-lg);
+    padding: 40px 32px; text-align: center;
+    animation: popUp .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  .completion-popup__box i { font-size: 52px; color: var(--green); margin-bottom: 16px; display: block; }
+  .completion-popup__box h3 { font-size: 22px; font-weight: 700; color: var(--gray-900); }
+  .completion-popup__box p { font-size: 14px; color: var(--gray-500); margin-top: 6px; }
+
+  /* ── ANIMATIONS ─────────────────────────────────── */
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50% { opacity: .4; }
+  }
+  @keyframes activePulse {
+    0%   { box-shadow: 0 0 0 0 rgba(37,99,235,.4); }
+    70%  { box-shadow: 0 0 0 8px rgba(37,99,235,0); }
+    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+  }
+  @keyframes slideDown {
+    from { opacity:0; transform: translateY(-16px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  @keyframes driverBounce {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(-4px); }
+  }
+  @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+  @keyframes popUp   {
+    from { opacity:0; transform: scale(.7); }
+    to   { opacity:1; transform: scale(1); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* ── RESPONSIVE TWEAKS ──────────────────────────── */
+  @media (max-width: 480px) {
+    :root { --sheet-peek: 140px; }
+    .trk-header__eta { display: none; }  /* too cramped on very small phones */
+    .trk-header__share { padding: 0 10px; font-size: 12px; }
+    .status-row__time { font-size: 20px; }
+    .stat-card__value { font-size: 16px; }
+  }
+
+  @media (min-width: 768px) {
+    :root { --sheet-peek: 156px; }
+    .bottom-sheet {
+      left: auto; right: 0;
+      width: 400px;
+      border-radius: var(--radius-lg) 0 0 0;
+      transform: translateY(calc(100% - var(--sheet-peek)));
+      max-height: calc(100vh - var(--header-h));
+    }
+    .bottom-sheet.expanded { transform: translateY(0); }
+    .driver-card { max-width: 360px; }
+    .map-controls { top: 20px; right: 420px; }
+  }
+
+  @media (min-width: 1024px) {
+    .bottom-sheet {
+      width: 420px;
+      /* On desktop keep the sheet always expanded */
+      transform: translateY(0) !important;
+    }
+    .sheet-handle { display: none; }
+  }
+</style>
+
+<!-- ── HEADER ───────────────────────────────────────── -->
+<header class="trk-header">
+  <button class="trk-header__back" onclick="history.back()">
+    <i class="fas fa-arrow-left"></i>
+  </button>
+
+  <div class="trk-header__title">
+    <h1>Delivery #{{ delivery.id }}</h1>
+    <div class="trk-header__badge">
+      <div class="status-dot" id="hdr-dot"></div>
+      <span class="status-dot-text" id="hdr-status">{{ delivery.status }}</span>
+    </div>
+  </div>
+
+  <div class="trk-header__eta">
+    <i class="far fa-clock"></i>
+    <span id="eta-text">Calculating…</span>
+  </div>
+
+  <button class="trk-header__share" onclick="toggleShareModal()">
+    <i class="fas fa-share-alt"></i> Share
+  </button>
+</header>
+
+<!-- ── MAP ─────────────────────────────────────────── -->
+<div class="map-wrap">
+    <div id="map" 
+      data-pickup-lat="{{ delivery.pickup_lat|default('') }}"
+      data-pickup-lng="{{ delivery.pickup_lng|default('') }}"
+      data-dropoff-lat="{{ delivery.dropoff_lat|default('') }}"
+      data-dropoff-lng="{{ delivery.dropoff_lng|default('') }}"></div>
+    <input type="hidden" id="server-data"
+        data-delivery-id="{{ delivery.id }}"
+        data-customer-id="{{ current_user.id if current_user else '' }}"
+        data-driver-id="{{ delivery.driver_id if delivery.driver_id else '' }}"
+        data-driver-phone="{{ delivery.driver.phone if delivery.driver and delivery.driver.phone else '' }}"
+        name="csrf_token" value="{{ csrf_token() }}" />
+
+  <!-- Map controls -->
+  <div class="map-controls">
+    <button class="map-btn" onclick="centerOnDriver()" title="Center on driver">
+      <i class="fas fa-crosshairs"></i>
+    </button>
+    <button class="map-btn" onclick="fitAll()" title="Fit all">
+      <i class="fas fa-expand-alt"></i>
+    </button>
+  </div>
+
+  <!-- Driver floating card -->
+  <div class="driver-card" id="driver-card">
+    <div class="driver-avatar">
+      <img src="https://picsum.photos/seed/driver{{ delivery.driver_id }}/96/96" alt="Driver" id="driver-img">
+      <div class="online-dot"></div>
+    </div>
+    <div class="driver-info">
+      <div class="driver-info__name" id="driver-name">Loading…</div>
+      <div class="driver-info__vehicle" id="driver-vehicle">—</div>
+      <div class="driver-info__rating">
+        <i class="fas fa-star"></i>
+        <span id="driver-rating">—</span>
+      </div>
+    </div>
+    <div class="driver-actions">
+      <button class="driver-action-btn" onclick="callDriver()" title="Call">
+        <i class="fas fa-phone"></i>
+      </button>
+      <button class="driver-action-btn" onclick="messageDriver()" title="Message">
+        <i class="fas fa-comment"></i>
+      </button>
+    </div>
+  </div>                           
+</div>
+
+<!-- ── BOTTOM SHEET ────────────────────────────────── -->
+<div class="bottom-sheet" id="bottom-sheet">
+  <div class="sheet-handle" onclick="toggleSheet()">
+    <div class="sheet-handle__bar"></div>
+  </div>
+
+  <div class="sheet-body">
+
+    <!-- Status -->
+    <div class="status-row">
+      <div class="status-row__left">
+        <h5 id="status-title">{{ delivery.status }}</h5>
+        <p id="status-desc">Loading status…</p>
+      </div>
+      <div class="status-row__right">
+        <div class="status-row__time" id="eta-time">--:--</div>
+        <div class="status-row__label">est. arrival</div>
+      </div>
+    </div>
+
+    <!-- Progress steps -->
+    <div class="progress-steps">
+      <div class="steps-track">
+        <!-- fill bar (grows via JS) -->
+        <div class="steps-fill" id="steps-fill"></div>
+
+        <div class="step completed" id="step-placed">
+          <div class="step__icon"><i class="fas fa-check"></i></div>
+          <div class="step__label">Order<br>Placed</div>
+          <div class="step__time">{{ delivery.created_at.strftime('%H:%M') if delivery.created_at else '--:--' }}</div>
+        </div>
+
+        <div class="step" id="step-assigned">
+          <div class="step__icon"><i class="fas fa-motorcycle"></i></div>
+          <div class="step__label">Driver<br>Assigned</div>
+          <div class="step__time" id="time-assigned">--:--</div>
+        </div>
+
+        <div class="step" id="step-pickedup">
+          <div class="step__icon"><i class="fas fa-box"></i></div>
+          <div class="step__label">Picked<br>Up</div>
+          <div class="step__time" id="time-pickedup">--:--</div>
+        </div>
+
+        <div class="step" id="step-delivered">
+          <div class="step__icon"><i class="fas fa-flag-checkered"></i></div>
+          <div class="step__label">Delivered</div>
+          <div class="step__time" id="time-delivered">--:--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Location info -->
+    <div class="delivery-info">
+      <div class="section-label">Route</div>
+
+      <div class="location-item">
+        <div class="location-dot pickup">
+          <i class="fas fa-circle"></i>
+        </div>
+        <div class="location-text">
+          <div class="location-text__label">Pickup</div>
+          <div class="location-text__value">{{ delivery.pickup_location or 'N/A' }}</div>
+        </div>
+      </div>
+
+      <div class="location-item">
+        <div class="location-dot dropoff">
+          <i class="fas fa-map-marker-alt"></i>
+        </div>
+        <div class="location-text">
+          <div class="location-text__label">Dropoff</div>
+          <div class="location-text__value">{{ delivery.dropoff_location or 'N/A' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card__value">{{ delivery.distance_km or '0' }} km</div>
+        <div class="stat-card__label">Distance</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ delivery.estimated_duration_minutes or '0' }} min</div>
+        <div class="stat-card__label">Est. Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">₵{{ delivery.total_fare or '0' }}</div>
+        <div class="stat-card__label">Cost</div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="action-area">
+      <button class="btn-action btn-action--outline"
+              id="all-deliveries-btn" 
+              data-url="{{ url_for('customer.track_deliveries') }}">
+        <i class="fas fa-list"></i> All Deliveries
+      </button>
+      {% if delivery.status == 'Completed' %}
+      <button class="btn-action btn-action--primary"
+              id="rate-delivery-btn"
+              data-url="{{ url_for('customer.delivery_rating', delivery_id=delivery.id) }}">
+        <i class="fas fa-star"></i> Rate Delivery
+      </button>
+      {% endif %}
+    </div>
+
+  </div><!-- /sheet-body -->
+</div><!-- /bottom-sheet -->
+
+<!-- ── SHARE MODAL ─────────────────────────────────── -->
+<div class="modal fade" id="shareModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Share Tracking Link</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <button class="share-btn" onclick="shareViaWhatsApp()">
+          <i class="fab fa-whatsapp" style="color:#25D366;font-size:18px"></i> WhatsApp
+        </button>
+        <button class="share-btn" onclick="shareViaLink()">
+          <i class="fas fa-link" style="color:var(--blue);font-size:16px"></i> Copy Link
+        </button>
+        <button class="share-btn" onclick="shareViaEmail()">
+          <i class="fas fa-envelope" style="color:var(--gray-500);font-size:16px"></i> Email
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── IN-APP CALL MINI CARD (Customer) ───────────────── -->
+<div class="modal fade" id="callModal" tabindex="-1" data-bs-backdrop="false" data-bs-keyboard="false">
+  <div class="modal-dialog modal-sm" style="position: fixed; top: 80px; left: 500px; margin:0; transform: none; max-width: 340px;">
+    <div class="modal-content" style="border-radius: 12px; border: none; background: rgba(0,0,0,0.65); color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
+      <div class="modal-body p-2 d-flex align-items-center" style="gap:12px;">
+        <div id="call-status-icon" style="font-size:20px; width:36px; text-align:center; opacity:0.95;">
+          <i class="fas fa-phone"></i>
+        </div>
+
+        <div style="flex:1; min-width:0;">
+          <div id="call-driver-name" style="font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Calling...</div>
+          <div id="call-status-text" style="font-size:12px; opacity:0.9;">Ringing...</div>
+          <div id="call-timer" style="font-size:12px; opacity:0.9; margin-top:4px; display:none;">00:00</div>
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button type="button" class="btn btn-sm" onclick="endCall()" style="background: rgba(255,255,255,0.12); border: none; color: #fff; border-radius:6px; padding:8px 10px;">
+            <i class="fas fa-phone-slash"></i>
+          </button>
+          <button type="button" id="accept-call-btn" class="btn btn-sm" onclick="acceptCall()" style="background: rgba(76,175,80,0.85); border: none; color:#fff; border-radius:6px; padding:8px 10px; display:none;">
+            <i class="fas fa-phone"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DRIVER RATING MODAL (Customer) ───────────────── -->
+<div class="modal fade" id="ratingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px; border: none;">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title text-center w-100">Rate Your Driver</h5>
+        <button type="button" class="btn-close position-absolute" style="right: 16px;" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center pt-2">
+        <div class="mb-3">
+          <div id="rating-driver-name" class="fw-bold fs-5">Driver Name</div>
+          <p class="text-muted small">How was your delivery experience?</p>
+        </div>
+        
+        <div class="mb-4">
+          <div id="rating-stars" class="fs-2" style="cursor: pointer; letter-spacing: 8px;">
+            <i class="far fa-star" data-rating="1"></i>
+            <i class="far fa-star" data-rating="2"></i>
+            <i class="far fa-star" data-rating="3"></i>
+            <i class="far fa-star" data-rating="4"></i>
+            <i class="far fa-star" data-rating="5"></i>
+          </div>
+          <div id="rating-text" class="text-muted mt-2 small">Select a rating</div>
+        </div>
+        
+        <div class="mb-3">
+          <textarea id="rating-comment" class="form-control" rows="3" placeholder="Leave a comment (optional)" style="border-radius: 8px;"></textarea>
+        </div>
+        
+        <button type="button" class="btn btn-primary w-100" onclick="submitDriverRating()" style="border-radius: 8px;">
+          Submit Rating
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Responsive positioning for the mini call card */
+  @media (max-width: 992px) {
+    #callModal .modal-dialog { left: auto !important; right: 16px !important; top: 16px !important; }
+    #callModal .modal-content { max-width: 92vw; }
+  }
+
+  /* Star rating styling */
+  #rating-stars i {
+    transition: color 0.2s ease, transform 0.2s ease;
+    color: #e0e0e0 !important;
+  }
+  #rating-stars i:hover {
+    transform: scale(1.2);
+    color: #ffc107 !important;
+  }
+  #rating-stars i.fas {
+    color: #ffc107 !important;
+  }
+  #rating-stars i.far {
+    color: #e0e0e0 !important;
+  }
+</style>
+
+<!-- ── SCRIPTS ─────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  console.log('[TRACK] DOMContentLoaded - tracking script running');
+
+  // User ID from server data element
+  const serverDataEl = document.getElementById('server-data');
+  const currentUserId = serverDataEl?.dataset?.customerId ? Number(serverDataEl.dataset.customerId) : null;
+
+  // Sound functionality for incoming calls
+  let soundEnabled = false;
+  let callAudio = null;
+
+  // WebRTC audio setup for real-time call audio
+  let peerConnection = null;
+  let localStream = null;
+  let remoteAudio = null;
+
+  const rtcConfig = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  };
+
+  async function setupWebRTC() {
+    try {
+      console.log('[TRACK] Setting up WebRTC...');
+
+      // Create audio element for remote audio
+      if (!remoteAudio) {
+        remoteAudio = document.createElement('audio');
+        remoteAudio.autoplay = true;
+        remoteAudio.id = 'remote-call-audio';
+        document.body.appendChild(remoteAudio);
+      }
+
+      // Get user media (microphone)
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false
+      });
+      console.log('[TRACK] Got local audio stream');
+
+      // Create peer connection
+      peerConnection = new RTCPeerConnection(rtcConfig);
+
+      // Add local stream to peer connection
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      // Handle incoming remote stream
+      peerConnection.ontrack = (event) => {
+        console.log('[TRACK] Received remote track');
+        remoteAudio.srcObject = event.streams[0];
+      };
+
+      // Handle ICE candidates
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log('[TRACK] Sending ICE candidate');
+          socket.emit('webrtc_ice_candidate', {
+            call_id: currentCallId,
+            candidate: event.candidate
+          });
+        }
+      };
+
+      peerConnection.oniceconnectionstatechange = () => {
+        console.log('[TRACK] ICE connection state:', peerConnection.iceConnectionState);
+      };
+
+      console.log('[TRACK] WebRTC setup complete');
+      return peerConnection;
+    } catch (error) {
+      console.error('[TRACK] WebRTC setup error:', error);
+      throw error;
+    }
+  }
+
+  async function createOffer() {
+    try {
+      if (!peerConnection) {
+        await setupWebRTC();
+      }
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      console.log('[TRACK] Created offer, sending to peer');
+      socket.emit('webrtc_offer', {
+        call_id: currentCallId,
+        offer: offer
+      });
+    } catch (error) {
+      console.error('[TRACK] Error creating offer:', error);
+    }
+  }
+
+  async function handleOffer(offer) {
+    try {
+      console.log('[TRACK] Received offer, creating answer');
+      if (!peerConnection) {
+        await setupWebRTC();
+      }
+
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      console.log('[TRACK] Created answer, sending to peer');
+      socket.emit('webrtc_answer', {
+        call_id: currentCallId,
+        answer: answer
+      });
+    } catch (error) {
+      console.error('[TRACK] Error handling offer:', error);
+    }
+  }
+
+  async function handleAnswer(answer) {
+    try {
+      console.log('[TRACK] Received answer');
+      if (!peerConnection) {
+        await setupWebRTC();
+      }
+
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    } catch (error) {
+      console.error('[TRACK] Error handling answer:', error);
+    }
+  }
+
+  async function handleIceCandidate(candidate) {
+    try {
+      console.log('[TRACK] Received ICE candidate');
+      if (!peerConnection) {
+        await setupWebRTC();
+      }
+
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (error) {
+      console.error('[TRACK] Error handling ICE candidate:', error);
+    }
+  }
+
+  function cleanupWebRTC() {
+    console.log('[TRACK] Cleaning up WebRTC');
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+      localStream = null;
+    }
+    if (peerConnection) {
+      peerConnection.close();
+      peerConnection = null;
+    }
+    if (remoteAudio) {
+      remoteAudio.srcObject = null;
+    }
+  }
+
+  function enableSound() {
+    try {
+      // Create audio context for call notifications
+      callAudio = new Audio('/static/sounds/mixkit-clear-announce-tones-2861.wav');
+      callAudio.loop = true;
+      soundEnabled = true;
+
+      console.log('[TRACK] Sound notifications enabled');
+    } catch (e) {
+      console.error('[TRACK] Failed to enable sound:', e);
+    }
+  }
+
+  function playIncomingCallSound() {
+    if (soundEnabled && callAudio) {
+      try {
+        callAudio.play().catch(e => console.log('[TRACK] Sound play failed:', e));
+      } catch (e) {
+        console.error('[TRACK] Error playing call sound:', e);
+      }
+    }
+  }
+
+  function stopIncomingCallSound() {
+    if (callAudio) {
+      try {
+        callAudio.pause();
+        callAudio.currentTime = 0;
+      } catch (e) {
+        console.error('[TRACK] Error stopping call sound:', e);
+      }
+    }
+  }
+
+  // Enable sound on first user interaction to bypass browser autoplay policy
+  let soundEnabledByInteraction = false;
+  document.addEventListener('click', function enableSoundOnInteraction() {
+    if (!soundEnabledByInteraction) {
+      enableSound();
+      soundEnabledByInteraction = true;
+      console.log('[TRACK] Sound enabled by user interaction');
+    }
+  }, { once: true });
+
+  // ─── Socket.IO Setup ───────────────────────────
+  const socket = io('/customer', { 
+    transports: ['websocket'],
+    reconnection: true,
+    withCredentials: true
+  });
+  let currentCallId = null;
+  let callTimerInterval = null;
+  let callStartTime = null;
+  let isDriverInitiatedCall = false;  // Flag to track if call was initiated by driver
+
+  socket.on('connect', (data) => {
+    console.log('[TRACK] ✓ Socket.IO connected to /customer namespace:', data);
+    console.log('[TRACK] Socket ID:', socket.id);
+    console.log('[TRACK] Socket connected:', socket.connected);
+    
+    // Send explicit authentication event as backup
+    console.log(`[TRACK] Sending authenticate event with customer_id: ${currentUserId}`);
+    socket.emit('authenticate', { customer_id: currentUserId }, (response) => {
+      console.log(`[TRACK] Authentication response:`, response);
+    });
+  });
+  
+  socket.on('connect_error', (error) => {
+    console.error('[TRACK] ✗ Socket.IO connection error:', error);
+  });
+  
+  socket.on('disconnect', (reason) => {
+    console.log('[TRACK] Socket.IO disconnected - Reason:', reason);
+  });
+
+  socket.on('authenticated', (data) => {
+    console.log(`[TRACK] ✓ Received 'authenticated' event:`, data);
+  });
+
+  socket.on('call_incoming', (data) => {
+    console.log('[TRACK] Incoming call offer received:', data);
+    // Note: Customer doesn't normally receive incoming calls, this is for reference
+  });
+
+  socket.on('driver_call_incoming', (data) => {
+    console.log('[TRACK] Driver initiated incoming call:', data);
+    currentCallId = data.call_id;
+    isDriverInitiatedCall = true;  // Mark as driver-initiated
+
+    // Enable sound when incoming call is received
+    if (!soundEnabledByInteraction) {
+      enableSound();
+      soundEnabledByInteraction = true;
+      console.log('[TRACK] Sound enabled by incoming call');
+    }
+
+    // Play incoming call sound
+    playIncomingCallSound();
+
+    // Show incoming call modal with driver info
+    const callModal = new bootstrap.Modal(document.getElementById('callModal'));
+    document.getElementById('call-driver-name').textContent = data.driver_name || `Driver #${data.driver_id}`;
+    document.getElementById('call-status-text').textContent = 'Incoming call...';
+    document.getElementById('call-status-icon').innerHTML = '<i class="fas fa-phone" style="animation: pulse 1s infinite;"></i>';
+    document.getElementById('call-timer').style.display = 'none';
+    document.getElementById('accept-call-btn').style.display = 'flex';
+
+    callModal.show();
+    console.log('[TRACK] Incoming call modal displayed for driver', data.driver_id);
+  });
+
+  socket.on('call_accepted', (data) => {
+    console.log('[TRACK] Call accepted by driver:', data);
+    stopIncomingCallSound();
+    currentCallId = data.call_id;
+    document.getElementById('call-status-text').textContent = 'Connected';
+    document.getElementById('call-status-icon').innerHTML = '<i class="fas fa-phone" style="animation: pulse 1s infinite;"></i>';
+    callStartTime = Date.now();
+    startCallTimer();
+  });
+
+  socket.on('call_rejected', (data) => {
+    console.log('[TRACK] Call rejected by driver:', data);
+    stopIncomingCallSound();
+    document.getElementById('call-status-text').textContent = 'Driver declined';
+    document.getElementById('call-status-icon').innerHTML = '<i class="fas fa-phone-slash"></i>';
+    setTimeout(() => {
+      endCall();
+    }, 2000);
+  });
+
+  socket.on('call_ended', (data) => {
+    console.log('[TRACK] Call ended:', data);
+    stopIncomingCallSound();
+    endCall();
+  });
+
+  socket.on('call_failed', (data) => {
+    try {
+      console.warn('[TRACK] call_failed received:', data);
+      document.getElementById('call-status-text').textContent = data.reason || 'Call failed';
+      // Auto-close after short delay
+      setTimeout(() => endCall(), 1800);
+    } catch (e) { console.error(e); }
+  });
+
+  // ─── WebRTC Signaling Events ───────────────────────
+  socket.on('webrtc_offer', async (data) => {
+    console.log('[TRACK] Received WebRTC offer:', data);
+    await handleOffer(data.offer);
+  });
+
+  socket.on('webrtc_answer', async (data) => {
+    console.log('[TRACK] Received WebRTC answer:', data);
+    await handleAnswer(data.answer);
+  });
+
+  socket.on('webrtc_ice_candidate', async (data) => {
+    console.log('[TRACK] Received WebRTC ICE candidate');
+    await handleIceCandidate(data.candidate);
+  });
+
+  function startCallTimer() {
+    if (callTimerInterval) clearInterval(callTimerInterval);
+    document.getElementById('call-timer').style.display = 'block';
+    callTimerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      document.getElementById('call-timer').textContent = 
+        String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    }, 1000);
+  }
+
+  window.acceptCall = function() {
+    // Stop incoming call sound
+    stopIncomingCallSound();
+
+    const serverDataEl = document.getElementById('server-data');
+    const driverId = Number(serverDataEl?.dataset?.driverId);
+    const deliveryId = Number(serverDataEl?.dataset?.deliveryId);
+
+    console.log('[TRACK] Accepting call - driver:', driverId, 'call_id:', currentCallId);
+
+    // If this is a driver-initiated call (driver_call_incoming event), send call_accept_driver_call
+    // Otherwise ignore (customer should not emit 'call_accept' on /customer namespace)
+    if (isDriverInitiatedCall) {
+      console.log('[TRACK] Accepting driver-initiated call');
+      socket.emit('call_accept_driver_call', {
+        driver_id: driverId,
+        delivery_id: deliveryId,
+        call_id: currentCallId
+      });
+      isDriverInitiatedCall = false;
+
+      // Initiate WebRTC audio connection
+      setupWebRTC().then(() => {
+        console.log('[TRACK] WebRTC setup complete, creating offer');
+        createOffer();
+      }).catch(err => {
+        console.error('[TRACK] WebRTC setup failed:', err);
+      });
+    } else {
+      console.warn('[TRACK] Received accept on customer for non-driver-initiated call — no server handler; ignoring.');
+    }
+
+    document.getElementById('accept-call-btn').style.display = 'none';
+    document.getElementById('call-status-text').textContent = 'Connecting audio...';
+    callStartTime = Date.now();
+    startCallTimer();
+  };
+
+  window.endCall = function() {
+    // Stop incoming call sound
+    stopIncomingCallSound();
+
+    // Cleanup WebRTC
+    cleanupWebRTC();
+
+    if (callTimerInterval) clearInterval(callTimerInterval);
+
+    const serverDataEl = document.getElementById('server-data');
+    const driverId = Number(serverDataEl?.dataset?.driverId);
+    const deliveryId = Number(serverDataEl?.dataset?.deliveryId);
+
+    if (currentCallId) {
+      console.log('[TRACK] Ending call');
+      socket.emit('call_end', {
+        driver_id: driverId,
+        delivery_id: deliveryId,
+        call_id: currentCallId
+      });
+    }
+
+    currentCallId = null;
+    callStartTime = null;
+    const callModal = bootstrap.Modal.getInstance(document.getElementById('callModal'));
+    if (callModal) callModal.hide();
+  };
+
+  // ── Map init ──────────────────────────────────── 
+  // Try to use delivery coordinates for initial view, otherwise fallback to a major city
+  let initialCenter = [40.7128, -74.0060]; // New York City as fallback
+  let initialZoom = 13;
+  
+  // Get coordinates from data attributes
+  const mapElement = document.getElementById('map');
+  const pickupLat = parseFloat(mapElement.dataset.pickupLat) || null;
+  const pickupLng = parseFloat(mapElement.dataset.pickupLng) || null;
+  const dropoffLat = parseFloat(mapElement.dataset.dropoffLat) || null;
+  const dropoffLng = parseFloat(mapElement.dataset.dropoffLng) || null;
+  
+  if (pickupLat && pickupLng) {
+    initialCenter = [pickupLat, pickupLng];
+  } else if (dropoffLat && dropoffLng) {
+    initialCenter = [dropoffLat, dropoffLng];
+  }
+  
+  const map = L.map('map', { zoomControl: false }).setView(initialCenter, initialZoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(map);
+
+  let driverM = null, pickupM = null, dropoffM = null, routeLine = null;
+  // Route geometry (Leaflet uses [lat,lng])
+  let routeCoordsLatLng = null;
+  // Ensure we fetch route only once per page load
+  let routeRequested = false;
+  let updateInterval = null;
+  let sheetExpanded = false;
+
+  const mkIcon = (html, size) => L.divIcon({ html, iconSize: size, className: 'custom-div-icon', iconAnchor: [size[0]/2, size[1]/2] });
+
+  const driverIcon = (active) => mkIcon(`<div class="marker-driver${active?' active':''}"><i class="fas fa-motorcycle"></i></div>`, [44,44]);
+  const pickupIcon = () => mkIcon('<div class="marker-pickup"><i class="fas fa-circle" style="font-size:10px"></i></div>', [36,36]);
+  const dropoffIcon = () => mkIcon('<div class="marker-dropoff"><i class="fas fa-map-marker-alt"></i></div>', [36,36]);
+
+  /* ── Status colours ────────────────────────────── */
+  const STATUS_COLORS = { 'Pending':'#d97706', 'Assigned':'#0891b2', 'In Transit':'#2563eb', 'Delivered':'#16a34a' };
+  const STATUS_DESCS  = {
+    'Pending':    'Looking for an available driver…',
+    'Assigned':   'Driver assigned — heading to pickup!',
+    'In Transit':'On the way with your order!',
+    'Delivered':  'Successfully delivered. 🎉',
+    'Accepted':   'Driver accepted the delivery.',
+    'Completed':  'Delivery completed.'
+  };
+
+  /* ── Progress fill ─────────────────────────────── */
+  const STEP_PROGRESS = { 'Pending':0, 'Assigned':33, 'In Transit':66, 'Delivered':100, 'Accepted':33, 'Completed':100 };
+  function setProgressFill(status) {
+    const pct = STEP_PROGRESS[status] ?? 0;
+    document.getElementById('steps-fill').style.width = pct + '%';
+  }
+
+  /* ── Update UI from API data ───────────────────── */
+  function applyData(data) {
+    const s = data.status;
+
+    /* Header */
+    document.getElementById('hdr-status').textContent = s;
+    const dot = document.getElementById('hdr-dot');
+    dot.style.background = STATUS_COLORS[s] || '#6b7280';
+
+    /* Status row */
+    document.getElementById('status-title').textContent = s;
+    document.getElementById('status-desc').textContent  = STATUS_DESCS[s] || 'Updating…';
+
+    /* Driver card */
+    const card = document.getElementById('driver-card');
+    if (data.driver) {
+      card.style.display = 'flex';
+      document.getElementById('driver-name').textContent    = data.driver.name || `Driver #${data.driver.id}`;
+      document.getElementById('driver-vehicle').textContent = `${data.driver.vehicle_type||'Vehicle'} · ${data.driver.vehicle_number||'N/A'}`;
+      document.getElementById('driver-rating').textContent  = data.driver.rating ? data.driver.rating.toFixed(1) : 'New';
+
+      // Set driver image with fallback
+      const driverImg = document.getElementById('driver-img');
+      if (data.driver.profile_picture) {
+        driverImg.src = `/uploads/drivers/documents/${data.driver.profile_picture}`;
+      } else {
+        driverImg.src = `https://picsum.photos/seed/driver${data.driver.id}/96/96`;
+      }
+    } else {
+      card.style.display = 'none';
+    }
+
+    /* Steps */
+    document.getElementById('step-placed').className = 'step completed';
+    if (data.driver) {
+      document.getElementById('step-assigned').className = 'step completed';
+      if (data.assigned_at)
+        document.getElementById('time-assigned').textContent = fmtTime(data.assigned_at);
+    }
+    if (s === 'In Transit' || s === 'Accepted') {
+      document.getElementById('step-pickedup').className = 'step active';
+    }
+    if (s === 'Delivered' || s === 'Completed') {
+      document.getElementById('step-pickedup').className = 'step completed';
+      document.getElementById('step-delivered').className = 'step completed';
+      if (data.completed_at)
+        document.getElementById('time-delivered').textContent = fmtTime(data.completed_at);
+    }
+
+    setProgressFill(s);
+
+    /* ETA */
+    if (data.estimated_duration_minutes && (s === 'In Transit' || s === 'Accepted')) {
+      const eta = new Date(Date.now() + data.estimated_duration_minutes * 60000);
+      const etaStr = eta.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      document.getElementById('eta-time').textContent = etaStr;
+      document.getElementById('eta-text').textContent = `${data.estimated_duration_minutes} min`;
+    } else {
+      document.getElementById('eta-time').textContent = '--:--';
+      document.getElementById('eta-text').textContent = 'Calculating…';
+    }
+  }
+
+  /* ── Map update ────────────────────────────────── */
+  function applyMap(data) {
+    if (driverM)  map.removeLayer(driverM);
+    if (pickupM)  map.removeLayer(pickupM);
+    if (dropoffM) map.removeLayer(dropoffM);
+    if (routeLine)map.removeLayer(routeLine);
+
+    const coords = [];
+
+    if (data.pickup_lat && data.pickup_lng) {
+      pickupM = L.marker([data.pickup_lat, data.pickup_lng], { icon: pickupIcon() }).addTo(map);
+      pickupM.bindPopup('<b>Pickup</b>');
+      coords.push([data.pickup_lat, data.pickup_lng]);
+    }
+
+    if (data.driver?.current_location) {
+      const loc = data.driver.current_location;
+      driverM = L.marker([loc.latitude, loc.longitude], { icon: driverIcon(data.status === 'In Transit') }).addTo(map);
+      driverM.bindPopup(`<b>${data.driver.full_name||'Driver'}</b>`);
+      coords.push([loc.latitude, loc.longitude]);
+      if (data.status === 'In Transit') map.flyTo([loc.latitude, loc.longitude], 16, { duration: 1.2 });
+    }
+
+    if (data.dropoff_lat && data.dropoff_lng) {
+      dropoffM = L.marker([data.dropoff_lat, data.dropoff_lng], { icon: dropoffIcon() }).addTo(map);
+      dropoffM.bindPopup('<b>Dropoff</b>');
+      coords.push([data.dropoff_lat, data.dropoff_lng]);
+    }
+
+    // Prefer server-provided road-following geometry when available
+    if (routeCoordsLatLng && Array.isArray(routeCoordsLatLng) && routeCoordsLatLng.length >= 2) {
+      routeLine = L.polyline(routeCoordsLatLng, {
+        color: data.status === 'Delivered' ? '#16a34a' : '#2563eb',
+        weight: 4, opacity: .85,
+        dashArray: data.status === 'In Transit' ? '12 8' : null
+      }).addTo(map);
+    } else if (coords.length >= 2) {
+      // Fallback: simple straight-line poly between known points
+      routeLine = L.polyline(coords, {
+        color: data.status === 'Delivered' ? '#16a34a' : '#2563eb',
+        weight: 4, opacity: .75,
+        dashArray: data.status === 'In Transit' ? '12 8' : null
+      }).addTo(map);
+    }
+
+    fitAll();
+  }
+
+  /* ── Fetch and refresh ─────────────────────────── */
+  function refresh() {
+    console.log('[TRACK] refresh() called - requesting status');
+    fetch(`/customer/delivery/{{ delivery.id }}/status`)
+      .then(r => {
+        console.log('[TRACK] /status HTTP', r.status, r.statusText);
+        return r.text().then(text => {
+          try {
+            const json = text ? JSON.parse(text) : null;
+            return json;
+          } catch (err) {
+            console.error('[TRACK] Failed to parse /status JSON:', err, 'responseText:', text);
+            return null;
+          }
+        });
+      })
+      .then(data => {
+        if (!data) return console.error('[TRACK] No JSON data from /status');
+        if (data.error) return console.error('[TRACK] Status API error:', data.error);
+        console.log('[TRACK] status data:', data);
+        applyData(data);
+        applyMap(data);
+        // Fetch road-following route once (uses server /route endpoint)
+        fetchRouteIfNeeded(data);
+        if (data.status === 'Delivered' || data.status === 'Completed') {
+          clearInterval(updateInterval);
+          showCompletion();
+        }
+      })
+      .catch(e => console.error('[TRACK] refresh fetch error:', e));
+  }
+
+  async function fetchRouteIfNeeded(data) {
+    if (routeRequested) return;
+    if (!data || !data.pickup_lat || !data.pickup_lng || !data.dropoff_lat || !data.dropoff_lng) return;
+    routeRequested = true;
+    try {
+      const requestBody = {
+        pickup_lat: parseFloat(data.pickup_lat),
+        pickup_lng: parseFloat(data.pickup_lng),
+        dropoff_lat: parseFloat(data.dropoff_lat),
+        dropoff_lng: parseFloat(data.dropoff_lng),
+        driver_region: data.region || ''
+      };
+      const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+      console.log('[ROUTE] Fetching route for delivery:', requestBody);
+      const res = await fetch('/route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('[ROUTE] Server error fetching route:', err);
+        return;
+      }
+
+      const routeData = await res.json();
+      console.log('[ROUTE] Route data received:', routeData);
+      const coords = routeData.route_coords || (routeData.primary && routeData.primary.coordinates);
+      if (!coords || !Array.isArray(coords)) {
+        console.warn('[ROUTE] No route coordinates returned', routeData);
+        return;
+      }
+
+      // Convert [lng, lat] -> [lat, lng] for Leaflet
+      routeCoordsLatLng = coords.map(c => [parseFloat(c[1]), parseFloat(c[0])]);
+
+      // Re-apply map drawing so route uses the server geometry and proper styling
+      applyMap(data);
+
+    } catch (err) {
+      console.error('[ROUTE] Error fetching route:', err);
+    }
+  }
+
+  /* ── Helpers ───────────────────────────────────── */
+  function fmtTime(iso) {
+    return new Date(iso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  window.fitAll = function () {
+    const markers = [pickupM, dropoffM, driverM].filter(Boolean);
+    if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(.25));
+  };
+
+  window.centerOnDriver = function () {
+    if (driverM) map.flyTo(driverM.getLatLng(), 17, { duration: 1.2 });
+  };
+
+  window.toggleSheet = function () {
+    sheetExpanded = !sheetExpanded;
+    document.getElementById('bottom-sheet').classList.toggle('expanded', sheetExpanded);
+  };
+
+  // In-app call: initiate call via Socket.IO
+  window.callDriver = async function() {
+    const serverDataEl = document.getElementById('server-data');
+    const driverId = serverDataEl?.dataset?.driverId ? Number(serverDataEl.dataset.driverId) : null;
+    const deliveryId = Number(serverDataEl?.dataset?.deliveryId);
+    
+    if (!driverId) { 
+      alert('No driver assigned yet'); 
+      return; 
+    }
+    
+    console.log('[TRACK] ✓ Initiating call to driver', driverId, 'for delivery', deliveryId);
+    console.log('[TRACK] Socket.IO connection state:', {connected: socket.connected, id: socket.id});
+    
+    // Show call modal
+    const callModal = new bootstrap.Modal(document.getElementById('callModal'));
+    callModal.show();
+    
+    // Update modal with driver info
+    const driverName = document.getElementById('driver-name')?.textContent || `Driver #${driverId}`;
+    document.getElementById('call-driver-name').textContent = driverName;
+    document.getElementById('call-status-text').textContent = 'Ringing...';
+    document.getElementById('call-timer').style.display = 'none';
+    document.getElementById('accept-call-btn').style.display = 'none';
+    document.getElementById('call-status-icon').innerHTML = '<i class="fas fa-phone"></i>';
+    
+    // Emit call initiation event with ack callback
+    console.log('[TRACK] Emitting call_initiate to server with data:', {driver_id: driverId, delivery_id: deliveryId, customer_id: currentUserId});
+    socket.emit('call_initiate', {
+      driver_id: driverId,
+      delivery_id: deliveryId,
+      customer_id: currentUserId
+    }, (resp) => {
+      console.log('[TRACK] ✓ call_initiate ack received:', resp);
+      if (resp && resp.driver_online === false) {
+        document.getElementById('call-status-text').textContent = resp.reason || 'Driver not online';
+        console.warn('[TRACK] Driver not online:', resp);
+        // Optionally auto-close modal after brief pause
+        setTimeout(() => endCall(), 1600);
+      } else if (resp && resp.driver_online === true) {
+        console.log('[TRACK] ✓ Driver is online and should receive call');
+      }
+    });
+  };
+
+  // Chat navigation: open unified conversation page
+  window.messageDriver = function() {
+    const serverDataEl = document.getElementById('server-data');
+    const deliveryId = Number(serverDataEl?.dataset?.deliveryId);
+    const driverId = serverDataEl?.dataset?.driverId ? Number(serverDataEl.dataset.driverId) : null;
+    if (!driverId) { alert('No driver assigned yet'); return; }
+    if (!deliveryId) { alert('Missing delivery id'); return; }
+    window.location.href = `/customer/conversation/${deliveryId}/chat`;
+  };
+
+  window.toggleShareModal = function () {
+    new bootstrap.Modal(document.getElementById('shareModal')).show();
+  };
+  window.shareViaWhatsApp = () => window.open(`https://wa.me/?text=Track my delivery: ${location.href}`, '_blank');
+  window.shareViaLink     = () => { navigator.clipboard.writeText(location.href); alert('Link copied!'); };
+  window.shareViaEmail    = () => { location.href = `mailto:?subject=Track my delivery&body=${location.href}`; };
+
+  function showCompletion() {
+    const el = document.createElement('div');
+    el.className = 'completion-popup';
+    el.innerHTML = `
+      <div class="completion-popup__box">
+        <i class="fas fa-check-circle"></i>
+        <h3>Delivered!</h3>
+        <p>Your order has been delivered.</p>
+      </div>`;
+    el.onclick = () => el.remove();
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+
+    // Show rating modal
+    showRatingModal();
+  }
+
+  let selectedRating = 0;
+
+  function showRatingModal() {
+    const driverName = document.getElementById('driver-name')?.textContent || 'Driver';
+    document.getElementById('rating-driver-name').textContent = driverName;
+    const ratingModal = new bootstrap.Modal(document.getElementById('ratingModal'));
+    ratingModal.show();
+
+    // Attach event listeners to stars after modal is shown
+    setTimeout(() => {
+      attachStarListeners();
+    }, 100);
+  }
+
+  function attachStarListeners() {
+    const stars = document.querySelectorAll('#rating-stars i');
+    const ratingText = document.getElementById('rating-text');
+    const ratingTexts = ['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+
+    console.log('[RATING] Attaching listeners to', stars.length, 'stars');
+
+    // Remove existing listeners by cloning
+    stars.forEach(star => {
+      const newStar = star.cloneNode(true);
+      star.parentNode.replaceChild(newStar, star);
+    });
+
+    // Re-select after cloning
+    const freshStars = document.querySelectorAll('#rating-stars i');
+
+    freshStars.forEach(star => {
+      star.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectedRating = parseInt(this.dataset.rating);
+        console.log('[RATING] Star clicked:', selectedRating);
+        updateStars(selectedRating);
+        ratingText.textContent = ratingTexts[selectedRating - 1];
+      });
+
+      star.addEventListener('mouseenter', function() {
+        const hoverRating = parseInt(this.dataset.rating);
+        console.log('[RATING] Star hover:', hoverRating);
+        updateStars(hoverRating);
+      });
+
+      star.addEventListener('mouseleave', function() {
+        console.log('[RATING] Star leave, selected:', selectedRating);
+        updateStars(selectedRating);
+      });
+    });
+  }
+
+  function updateStars(rating) {
+    const stars = document.querySelectorAll('#rating-stars i');
+    console.log('[RATING] Updating stars to rating:', rating);
+    stars.forEach((star, index) => {
+      if (index < rating) {
+        star.classList.remove('far');
+        star.classList.add('fas');
+      } else {
+        star.classList.remove('fas');
+        star.classList.add('far');
+      }
+    });
+  }
+
+  window.submitDriverRating = async function() {
+    if (selectedRating === 0) {
+      alert('Please select a rating');
+      return;
+    }
+
+    const comment = document.getElementById('rating-comment').value;
+    const serverDataEl = document.getElementById('server-data');
+    const deliveryId = Number(serverDataEl?.dataset?.deliveryId);
+
+    if (!deliveryId) {
+      alert('Missing delivery ID');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/customer/delivery/${deliveryId}/rate_driver`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          rating: selectedRating,
+          comment: comment
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Thank you for your rating!');
+        const ratingModal = bootstrap.Modal.getInstance(document.getElementById('ratingModal'));
+        ratingModal.hide();
+      } else {
+        alert(data.error || 'Error submitting rating');
+      }
+    } catch (error) {
+      console.error('Rating submission error:', error);
+      alert('Error submitting rating');
+    }
+  }
+
+  /* ── Boot ──────────────────────────────────────── */
+  refresh();
+
+  const activeStatuses = ['In Transit', 'Assigned', 'Accepted'];
+  if (activeStatuses.includes('{{ delivery.status }}')) {
+    updateInterval = setInterval(refresh, 5000);
+  }
+
+  // Add event listeners for action buttons
+  const allDeliveriesBtn = document.getElementById('all-deliveries-btn');
+  if (allDeliveriesBtn) {
+    allDeliveriesBtn.addEventListener('click', function() {
+      window.location.href = this.dataset.url;
+    });
+  }
+
+  const rateDeliveryBtn = document.getElementById('rate-delivery-btn');
+  if (rateDeliveryBtn) {
+    rateDeliveryBtn.addEventListener('click', function() {
+      window.location.href = this.dataset.url;
+    });
+  }
+
+  window.addEventListener('beforeunload', () => clearInterval(updateInterval));
+});
+</script>
+
+  <!-- per-delivery chat page replaces modal; navigation handled in messageDriver() -->
+{% endblock %}
