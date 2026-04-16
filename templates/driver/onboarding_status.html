@@ -1,0 +1,651 @@
+{% extends "base.html" %}
+
+{% block title %}Onboarding Status - Driver{% endblock %}
+
+{% block content %}
+<style>
+    .onboarding-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .onboarding-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .onboarding-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .onboarding-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-top: 1rem;
+    }
+
+    .badge-pending {
+        background: #fbbf24;
+        color: #78350f;
+    }
+
+    .badge-approved {
+        background: #10b981;
+        color: white;
+    }
+
+    .badge-rejected {
+        background: #ef4444;
+        color: white;
+    }
+
+    .progress-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-bar-container {
+        margin-bottom: 1rem;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+        transition: width 0.3s ease;
+    }
+
+    .progress-text {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .progress-percentage {
+        font-weight: 600;
+        font-size: 1.25rem;
+        color: #1e293b;
+    }
+
+    .documents-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .documents-section h2 {
+        color: #1e293b;
+        font-size: 1.25rem;
+        margin: 0 0 1.5rem 0;
+        font-weight: 600;
+    }
+
+    .document-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .document-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .document-item.submitted {
+        border-color: #d1fae5;
+        background: #f0fdf4;
+    }
+
+    .document-item.verified {
+        border-color: #86efac;
+        background: #dcfce7;
+    }
+
+    .document-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex: 1;
+    }
+
+    .document-icon {
+        font-size: 1.5rem;
+        width: 40px;
+        text-align: center;
+    }
+
+    .document-details h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: #1e293b;
+        font-weight: 600;
+    }
+
+    .document-details p {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .document-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #cbd5e1;
+    }
+
+    .status-indicator.pending {
+        background: #fbbf24;
+    }
+
+    .status-indicator.verified {
+        background: #10b981;
+    }
+
+    .status-indicator.rejected {
+        background: #ef4444;
+    }
+
+    .status-text {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #64748b;
+    }
+
+    .upload-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.3s ease;
+    }
+
+    .upload-btn:hover {
+        background: #2563eb;
+    }
+
+    .upload-area {
+        border: 2px dashed #3b82f6;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+
+    .upload-area:hover {
+        border-color: #1e40af;
+        background: #eff6ff;
+    }
+
+    .upload-area p {
+        margin: 0;
+        color: #64748b;
+    }
+
+    .upload-area .upload-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: #3b82f6;
+    }
+
+    .info-box {
+        background: #eff6ff;
+        border-left: 4px solid #3b82f6;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+        color: #1e40af;
+    }
+
+    .info-box i {
+        margin-right: 0.5rem;
+    }
+
+    .next-steps {
+        background: white;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .next-steps h2 {
+        color: #1e293b;
+        font-size: 1.25rem;
+        margin: 0 0 1rem 0;
+        font-weight: 600;
+    }
+
+    .steps-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .steps-list li {
+        display: flex;
+        align-items: flex-start;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .steps-list li:last-child {
+        border-bottom: none;
+    }
+
+    .step-number {
+        background: #3b82f6;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .step-content h3 {
+        margin: 0;
+        color: #1e293b;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .step-content p {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    @media (max-width: 768px) {
+        .onboarding-header {
+            padding: 1.5rem;
+        }
+
+        .onboarding-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .document-item {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .document-info {
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .document-status {
+            align-self: flex-end;
+        }
+    }
+</style>
+
+<div class="onboarding-container">
+    <!-- Header -->
+    <div class="onboarding-header">
+        <h1><i class="fas fa-clipboard-check"></i> Onboarding Status</h1>
+        <p>Complete your verification to start earning with us</p>
+        <span class="status-badge {% if onboarding.status == 'Approved' %}badge-approved{% elif onboarding.status == 'Rejected' %}badge-rejected{% else %}badge-pending{% endif %}">
+            {{ onboarding.status }}
+        </span>
+    </div>
+
+    <!-- Info Box -->
+    <div class="info-box">
+        <i class="fas fa-info-circle"></i>
+        <strong>Important:</strong> Your documents need to be verified before you can start accepting deliveries. Please upload all required documents with clear, legible images.
+    </div>
+
+    <!-- Progress Section -->
+    <div class="progress-section">
+        <h2 style="margin-top: 0; margin-bottom: 1.5rem; font-size: 1.1rem; font-weight: 600; color: #1e293b;">
+            <i class="fas fa-chart-line" style="color: #3b82f6; margin-right: 0.5rem;"></i> Completion Progress
+        </h2>
+        <div class="progress-bar-container">
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="completeBar"></div>
+            </div>
+            <div class="progress-text">
+                <span>Documents Submitted</span>
+                <span class="progress-percentage" id="completePercent">0%</span>
+            </div>
+        </div>
+        <script>
+        document.getElementById('completeBar').style.width = '{{ completion_percentage }}%';
+        document.getElementById('completePercent').textContent = '{{ completion_percentage }}%';
+        </script>
+    </div>
+
+    <!-- Documents Section -->
+    <div class="documents-section">
+        <h2><i class="fas fa-file-upload"></i> Required Documents</h2>
+
+        {% if documents %}
+            {% for doc in documents %}
+                <div class="document-item {% if doc.verification_status == 'Verified' %}verified{% elif doc.verification_status in ['Pending', 'Under Review'] %}submitted{% endif %}">
+                    <div class="document-info">
+                        <div class="document-icon">
+                            {% if doc.document_type == 'national_id' %}
+                                <i class="fas fa-id-card" style="color: #3b82f6;"></i>
+                            {% elif doc.document_type == 'driver_license' %}
+                                <i class="fas fa-car" style="color: #8b5cf6;"></i>
+                            {% elif doc.document_type == 'vehicle_insurance' %}
+                                <i class="fas fa-file-contract" style="color: #10b981;"></i>
+                            {% elif doc.document_type == 'vehicle_inspection' %}
+                                <i class="fas fa-clipboard-check" style="color: #f59e0b;"></i>
+                            {% else %}
+                                <i class="fas fa-file" style="color: #64748b;"></i>
+                            {% endif %}
+                        </div>
+                        <div class="document-details">
+                            <h3>{{ doc.document_type.replace('_', ' ').title() }}</h3>
+                            <p>Uploaded {{ doc.uploaded_at.strftime('%B %d, %Y') }}</p>
+                        </div>
+                    </div>
+                    <div class="document-status">
+                        <div class="status-indicator {% if doc.verification_status == 'Verified' %}verified{% elif doc.verification_status == 'Pending' %}pending{% elif doc.verification_status == 'Rejected' %}rejected{% endif %}"></div>
+                        <span class="status-text">{{ doc.verification_status }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Upload Form -->
+        <div style="margin-top: 2rem; padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #f8fafc;">
+            <h3 style="margin-top: 0; color: #1e293b; font-size: 1rem;">Upload Document</h3>
+            <form id="documentUploadForm" enctype="multipart/form-data" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #334155; font-size: 0.875rem;">
+                        Document Type
+                    </label>
+                    <select name="document_type" id="documentType" required style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem;">
+                        <option value="">Select a document type</option>
+                        <option value="national_id">National ID</option>
+                        <option value="driver_license">Driver License</option>
+                        <option value="vehicle_insurance">Vehicle Insurance</option>
+                        <option value="vehicle_inspection">Vehicle Inspection Report</option>
+                        <option value="police_clearance">Police Clearance Certificate</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #334155; font-size: 0.875rem;">
+                        Document Number (optional)
+                    </label>
+                    <input type="text" name="document_number" id="documentNumber" placeholder="e.g., ID number, license number" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem; box-sizing: border-box;">
+                </div>
+
+                <!-- Upload Area -->
+                <div class="upload-area" id="uploadArea" style="margin-bottom: 1rem;">
+                    <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <p><strong>Click to upload</strong> or drag and drop</p>
+                    <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem;">PNG, JPG, PDF up to 10MB</p>
+                    <input type="file" name="file" id="fileInput" style="display: none;" accept=".png,.jpg,.jpeg,.pdf">
+                </div>
+
+                <!-- File Preview Container -->
+                <div id="filePreviewContainer" style="display: none; padding: 1rem; background: #f0fdf4; border: 2px solid #10b981; border-radius: 0.5rem; min-height: 180px; margin-bottom: 1rem;">
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                        <!-- Image Preview -->
+                        <img id="imagePreview" src="" style="max-width: 100%; max-height: 120px; margin-bottom: 0.75rem; border-radius: 0.375rem; object-fit: contain; display: none;">
+                        
+                        <!-- PDF Preview Icon -->
+                        <div id="pdfPreview" style="font-size: 3rem; color: #dc3545; margin-bottom: 0.75rem; display: none;">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+
+                        <!-- File Info -->
+                        <div id="fileInfo" style="text-align: center; margin-bottom: 1rem;">
+                            <strong id="fileName" style="display: block; color: #155724; font-weight: 600; margin-bottom: 0.25rem;"></strong>
+                            <small id="fileSize" style="color: #666; display: block; margin-bottom: 0.25rem;"></small>
+                            <small id="uploadedTime" style="color: #999; font-size: 0.75rem;"></small>
+                        </div>
+
+                        <!-- Remove Button -->
+                        <button type="button" onclick="clearFilePreview()" style="background: #dc3545; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-weight: 500; font-size: 0.875rem;">
+                            <i class="fas fa-trash"></i> Remove File
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="upload-btn" style="width: 100%; margin-top: 1rem;">
+                    <i class="fas fa-upload"></i> Upload Document
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Next Steps  -->
+    <div class="next-steps">
+        <h2><i class="fas fa-tasks"></i> Next Steps</h2>
+        <ul class="steps-list">
+            <li>
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Upload Required Documents</h3>
+                    <p>Provide clear, legible copies of your ID, driver's license, and vehicle documents.</p>
+                </div>
+            </li>
+            <li>
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Documents Verification</h3>
+                    <p>Our team will review your documents within 24-48 hours to ensure they meet our requirements.</p>
+                </div>
+            </li>
+            <li>
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Background Check</h3>
+                    <p>We'll perform a background check for security and safety purposes.</p>
+                </div>
+            </li>
+            <li>
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Approval & Activation</h3>
+                    <p>Once approved, you can access your dashboard and start accepting deliveries!</p>
+                </div>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<script>
+// File upload handling
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const uploadForm = document.getElementById('documentUploadForm');
+const filePreviewContainer = document.getElementById('filePreviewContainer');
+const imagePreview = document.getElementById('imagePreview');
+const pdfPreview = document.getElementById('pdfPreview');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const uploadedTime = document.getElementById('uploadedTime');
+
+uploadArea.addEventListener('click', () => fileInput.click());
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = '#1e40af';
+    uploadArea.style.background = '#eff6ff';
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.style.borderColor = '#3b82f6';
+    uploadArea.style.background = 'white';
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = '#3b82f6';
+    uploadArea.style.background = 'white';
+    fileInput.files = e.dataTransfer.files;
+    handleFilePreview(e.dataTransfer.files[0]);
+});
+
+// Handle file selection
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleFilePreview(e.target.files[0]);
+    }
+});
+
+function handleFilePreview(file) {
+    if (!file) return;
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+        alert('File size exceeds 10MB limit. Please choose a smaller file.');
+        fileInput.value = '';
+        return;
+    }
+
+    // Show preview container
+    filePreviewContainer.style.display = 'block';
+    uploadArea.style.display = 'none';
+
+    // Hide both preview types first
+    imagePreview.style.display = 'none';
+    pdfPreview.style.display = 'none';
+
+    // Set file info
+    fileName.textContent = file.name;
+    fileSize.textContent = (file.size / 1024).toFixed(2) + ' KB';
+    uploadedTime.textContent = new Date().toLocaleTimeString();
+
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+
+    if (isImage) {
+        // Show image preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            imagePreview.src = e.target.result;
+            imagePreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else if (isPdf) {
+        // Show PDF icon
+        pdfPreview.style.display = 'block';
+    } else {
+        alert('Please upload an image (JPG, PNG) or PDF file');
+        fileInput.value = '';
+        clearFilePreview();
+        return;
+    }
+}
+
+function clearFilePreview() {
+    fileInput.value = '';
+    filePreviewContainer.style.display = 'none';
+    uploadArea.style.display = 'block';
+    imagePreview.src = '';
+    imagePreview.style.display = 'none';
+    pdfPreview.style.display = 'none';
+}
+
+uploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Validate document type
+    const documentType = document.getElementById('documentType').value;
+    if (!documentType) {
+        alert('Please select a document type');
+        return;
+    }
+
+    // Validate file is selected
+    if (!fileInput.files || !fileInput.files[0]) {
+        alert('Please select a file to upload');
+        return;
+    }
+
+    const formData = new FormData(uploadForm);
+    
+    try {
+        // Show loading state
+        const submitBtn = uploadForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+        const response = await fetch('{{ url_for("driver.upload_document") }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✓ Document uploaded successfully! Refresh the page to see it.');
+            uploadForm.reset();
+            clearFilePreview();
+            document.getElementById('documentNumber').value = '';
+            // Reload page to show new document
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            alert('✗ Error: ' + (data.error || data.message || 'Upload failed'));
+        }
+    } catch (error) {
+        alert('✗ Upload failed: ' + error.message);
+    } finally {
+        // Restore button state
+        const submitBtn = uploadForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Document';
+    }
+});
+</script>
+{% endblock %}
