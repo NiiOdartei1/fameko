@@ -1,0 +1,45 @@
+# Flask Web Application
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.2
+Flask-WTF==1.1.1
+Flask-Migrate==4.0.4
+Flask-Mail==0.9.1
+Flask-CORS==4.0.0
+Flask-Caching==2.0.2
+Flask-SocketIO==5.3.4
+
+# Database
+SQLAlchemy==2.0.20
+
+# API & Routing
+FastAPI==0.103.0
+uvicorn==0.23.2
+pydantic==2.3.0
+requests==2.31.0
+
+# Utilities
+python-dotenv==1.0.0
+Werkzeug==2.3.7
+WTForms==3.0.1
+python-slugify==8.0.1
+email-validator==2.0.0
+
+# Mapping & Geocoding (Optional)
+googlemaps==4.10.0
+polyline==2.0.0
+networkx==3.1
+Pillow==10.0.0
+
+# WebSocket
+python-socketio==5.9.0
+python-engineio==4.7.1
+python-dateutil==2.8.2
+
+# Security
+cryptography==41.0.4
+
+# Production Server (Optional)
+gunicorn==21.2.0
+gevent==23.9.1
+gevent-websocket==0.10.1
