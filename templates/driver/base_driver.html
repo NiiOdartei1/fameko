@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- No restrictions - allow all external resources -->
+    <title>{% block title %}Driver Portal - Fameko{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color:            #FF6B35;
+            --secondary-color:          #004E89;
+            --light-bg:                 #F8F9FA;
+            --border-color:             #E0E0E0;
+            --driver-accent:            #FF6B35;
+            --sidebar-width:            280px;
+            --sidebar-collapsed-width:  64px;
+            --navbar-height:            70px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--light-bg);
+            color: #1a202c;
+            line-height: 1.6;
+        }
+
+        /* ─────────────── Navbar (fixed, full-width) ─────────────── */
+        .navbar {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #003d6b 100%);
+            height: var(--navbar-height);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1040;
+            padding: 0 2rem;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--primary-color) !important;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.2s ease;
+        }
+        .navbar-brand:hover { transform: scale(1.05); }
+
+        /* ─────────────── Layout shell ─────────────── */
+        /*
+         * The page is split into a fixed sidebar on the left
+         * and a flex-growing main area on the right.
+         * We achieve this by making the sidebar position:fixed
+         * and giving the main wrapper a matching left margin
+         * that transitions in sync with sidebar expand/collapse.
+         */
+        .sidebar {
+            position: fixed;
+            top:    var(--navbar-height);
+            left:   0;
+            width:  var(--sidebar-width);
+            height: calc(100vh - var(--navbar-height));
+            background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+            border-right: 1px solid var(--border-color);
+            box-shadow: 4px 0 20px rgba(0,0,0,0.06);
+            z-index: 1030;
+            display: flex;
+            flex-direction: column;
+            overflow: visible;          /* allows tooltip to escape */
+            transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+
+        /* ─────────────── Main content wrapper ─────────────── */
+        /* Shifts right exactly as wide as the sidebar */
+        .main-content-wrapper {
+            margin-left: var(--sidebar-width);
+            margin-top:  var(--navbar-height);
+            min-height:  calc(100vh - var(--navbar-height));
+            transition:  margin-left 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: var(--light-bg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Applied by JS when sidebar collapses */
+        .main-content-wrapper.sidebar-collapsed {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+        }
+
+        /* ─────────────── User-profile header ─────────────── */
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            height: 68px;
+            min-height: 68px;
+            padding: 0 0.6rem 0 0.85rem;
+            border-bottom: 1px solid rgba(255,255,255,0.18);
+            background: linear-gradient(135deg, var(--driver-accent) 0%, #e55a2b 100%);
+            color: white;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .user-avatar {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.22);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.9rem;
+            transition: opacity 0.18s ease, width 0.32s ease, margin 0.32s ease;
+        }
+        .sidebar.collapsed .user-avatar { opacity: 0; width: 0; margin: 0; pointer-events: none; }
+
+        .user-profile-info {
+            flex: 1; min-width: 0; overflow: hidden; white-space: nowrap;
+            transition: opacity 0.18s ease;
+        }
+        .sidebar.collapsed .user-profile-info { opacity: 0; pointer-events: none; }
+
+        .user-name  { font-weight: 600; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; }
+        .user-email { font-size: 0.73rem; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; }
+
+        /* ─────────────── Sidebar toggle button ─────────────── */
+        .sidebar-toggle {
+            margin-left: auto;
+            flex-shrink: 0;
+            background: transparent;
+            color: rgba(255,255,255,0.85);
+            border: none; border-radius: 0.4rem;
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, transform 0.32s cubic-bezier(0.4,0,0.2,1);
+        }
+        .sidebar-toggle:hover { background: rgba(255,255,255,0.18); color: #fff; }
+        .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
+
+        /* ─────────────── Scrollable nav body ─────────────── */
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: visible;
+        }
+        .sidebar-nav::-webkit-scrollbar { width: 4px; }
+        .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+        .nav-section { padding: 0.75rem 0 0.2rem; }
+
+        .nav-section-title {
+            font-size: 0.67rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #94a3b8;
+            padding: 0 1rem;
+            margin-bottom: 0.2rem;
+            white-space: nowrap;
+            transition: opacity 0.18s ease;
+        }
+        .sidebar.collapsed .nav-section-title { opacity: 0; pointer-events: none; }
+
+        /* ─────────────── Nav links ─────────────── */
+        .nav-link {
+            color: #475569;
+            padding: 0.46rem 1rem;
+            border-radius: 0.45rem;
+            margin: 0.07rem 0.45rem;
+            text-decoration: none;
+            display: flex; align-items: center; gap: 0.7rem;
+            font-weight: 500; font-size: 0.875rem;
+            white-space: nowrap;
+            position: relative;
+            transition: background 0.2s, color 0.2s, transform 0.2s;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 4px; bottom: 4px;
+            width: 3px; border-radius: 2px;
+            background: var(--driver-accent);
+            transform: translateX(-100%);
+            transition: transform 0.2s ease;
+        }
+        .nav-link:hover           { background: rgba(255,107,53,0.1); color: var(--driver-accent); transform: translateX(3px); }
+        .nav-link:hover::before   { transform: translateX(0); }
+        .nav-link.active          { background: rgba(255,107,53,0.13); color: var(--driver-accent); font-weight: 600; }
+        .nav-link.active::before  { transform: translateX(0); }
+
+        .nav-link i { width: 20px; min-width: 20px; text-align: center; font-size: 0.88rem; }
+
+        .nav-link span { transition: opacity 0.18s ease; }
+        .sidebar.collapsed .nav-link span { opacity: 0; pointer-events: none; }
+
+        .sidebar.collapsed .nav-link {
+            justify-content: center;
+            padding-left: 0; padding-right: 0;
+            margin-left: 0.3rem; margin-right: 0.3rem;
+        }
+
+        /* ─────────────── Floating tooltip for collapsed rail ─────────────── */
+        .nav-tooltip {
+            position: fixed;
+            background: #1e293b; color: #fff;
+            font-size: 0.78rem; font-weight: 500;
+            padding: 0.3rem 0.7rem; border-radius: 0.4rem;
+            white-space: nowrap; pointer-events: none;
+            z-index: 9999;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.16);
+            opacity: 0; transform: translateX(-4px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+        .nav-tooltip.visible { opacity: 1; transform: translateX(0); }
+
+        .nav-link.logout {
+            color: #dc2626;
+            border-top: 1px solid var(--border-color);
+            margin-top: 0.35rem; padding-top: 0.55rem;
+        }
+        .nav-link.logout:hover { background: rgba(220,38,38,0.08); color: #dc2626; }
+
+        /* ─────────────── Cards ─────────────── */
+        .card {
+            border: none; border-radius: 1rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+        .card-body { padding: 1.5rem; }
+
+        /* ─────────────── Colour utilities ─────────────── */
+        .text-primary  { color: var(--driver-accent) !important; }
+        .text-success  { color: #28a745 !important; }
+        .text-info     { color: #17a2b8 !important; }
+        .text-warning  { color: #ffc107 !important; }
+        .text-muted    { color: #6c757d !important; }
+
+        /* ─────────────── Buttons ─────────────── */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--driver-accent) 0%, #e55a2b 100%);
+            border: none; border-radius: 0.5rem;
+            font-weight: 600; padding: 0.75rem 1.5rem;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255,107,53,0.3); }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none; border-radius: 0.5rem;
+            font-weight: 600; padding: 0.75rem 1.5rem;
+            transition: all 0.2s ease;
+        }
+        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(40,167,69,0.3); }
+
+        /* ─────────────── Mobile ─────────────── */
+        .mobile-nav-toggle {
+            display: none;
+            background: transparent; color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 0.4rem;
+            width: 36px; height: 36px;
+            align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+
+        @media (max-width: 1024px) {
+            /* On mobile the sidebar slides in over content; no margin shift needed */
+            .sidebar {
+                width: var(--sidebar-width) !important;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                overflow: hidden;
+            }
+            .sidebar.show { transform: translateX(0); }
+
+            /* Remove left margin – sidebar floats over content */
+            .main-content-wrapper,
+            .main-content-wrapper.sidebar-collapsed {
+                margin-left: 0;
+            }
+
+            .main-content { padding: 1.5rem; }
+            .mobile-nav-toggle { display: flex; }
+            .sidebar-toggle     { display: none; }
+        }
+
+        @media (max-width: 768px) {
+            .navbar { padding: 0 1rem; }
+            .navbar-brand { font-size: 1.25rem; }
+            .main-content { padding: 1rem; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+    <!-- CSRF Token for AJAX requests -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body>
+
+    <!-- ═══════════════ Fixed Navbar ═══════════════ -->
+    <nav class="navbar">
+        <div class="d-flex justify-content-between align-items-center h-100 w-100">
+            <a class="navbar-brand" href="/">
+                <img src="/static/icons/fameko_logo.png" alt="Fameko" style="height: 70px;">
+            </a>
+
+            {% if current_user.is_authenticated %}
+            <button class="mobile-nav-toggle" onclick="toggleMobileSidebar()" title="Menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            {% else %}
+            <div class="d-flex gap-3">
+                <a href="/customer/login" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-user me-2"></i>Customer Login
+                </a>
+                <a href="/driver/login" class="btn btn-primary btn-sm">
+                    <i class="fas fa-truck me-2"></i>Driver Login
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- ═══════════════ Fixed Sidebar ═══════════════ -->
+    {% if current_user.is_authenticated %}
+    <aside class="sidebar" id="sidebar">
+
+        <div class="user-profile">
+            <div class="user-avatar"><i class="fas fa-user"></i></div>
+            <div class="user-profile-info">
+                <div class="user-name">{{ current_user.name }}</div>
+                <div class="user-email">{{ current_user.email }}</div>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggleBtn"
+                    onclick="toggleSidebar()" title="Toggle sidebar (Ctrl+B)">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <div class="nav-section">
+                <div class="nav-section-title">Dashboard</div>
+                <a class="nav-link {% if request.endpoint == 'driver.dashboard' %}active{% endif %}"
+                   href="{{ url_for('driver.dashboard') }}" data-label="Dashboard">
+                    <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+                </a>
+                <a class="nav-link {% if request.endpoint == 'driver.map' %}active{% endif %}"
+                   href="{{ url_for('driver.map') }}" data-label="Live Map">
+                    <i class="fas fa-map"></i><span>Live Map</span>
+                </a>
+                <a class="nav-link {% if request.endpoint == 'driver.profile' %}active{% endif %}"
+                   href="{{ url_for('driver.profile') }}" data-label="Profile">
+                    <i class="fas fa-user"></i><span>Profile</span>
+                </a>
+                <!-- Messages are available from the active delivery view only -->
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Verification</div>
+                <a class="nav-link {% if request.endpoint == 'driver.onboarding_status' %}active{% endif %}"
+                   href="{{ url_for('driver.onboarding_status') }}" data-label="Onboarding">
+                    <i class="fas fa-clipboard-check"></i><span>Onboarding</span>
+                </a>
+                <a class="nav-link {% if request.endpoint == 'driver.payment_statements' %}active{% endif %}"
+                   href="{{ url_for('driver.payment_statements') }}" data-label="Payments">
+                    <i class="fas fa-wallet"></i><span>Payments</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Performance</div>
+                <a class="nav-link {% if request.endpoint == 'driver.driver_ratings' %}active{% endif %}"
+                   href="{{ url_for('driver.driver_ratings') }}" data-label="Ratings">
+                    <i class="fas fa-star"></i><span>Ratings</span>
+                </a>
+                <a class="nav-link {% if request.endpoint == 'driver.earnings_analytics' %}active{% endif %}"
+                   href="{{ url_for('driver.earnings_analytics') }}" data-label="Analytics">
+                    <i class="fas fa-chart-line"></i><span>Analytics</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Support</div>
+                <a class="nav-link {% if request.endpoint == 'driver.support' %}active{% endif %}"
+                   href="{{ url_for('driver.support') }}" data-label="Support">
+                    <i class="fas fa-headset"></i><span>Support</span>
+                </a>
+                <a class="nav-link logout" href="{{ url_for('driver.logout') }}" data-label="Logout">
+                    <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                </a>
+            </div>
+        </nav>
+
+    </aside>
+    {% endif %}
+
+    <!-- ═══════════════ Main Content ═══════════════ -->
+    <!--
+        .main-content-wrapper starts with margin-left equal to the sidebar width.
+        JS toggles .sidebar-collapsed on this wrapper (not on main-content)
+        so the transition is smooth and consistent.
+    -->
+    <div class="main-content-wrapper {% if not current_user.is_authenticated %}ms-0{% endif %}"
+         id="mainContentWrapper">
+        <main class="main-content" id="mainContent">
+            {% block content %}{% endblock %}
+        </main>
+    </div><!-- /.main-content-wrapper -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        /* ── Desktop: expand ↔ icon rail ── */
+        function toggleSidebar() {
+            if (window.innerWidth <= 1024) return;
+            const sidebar  = document.getElementById('sidebar');
+            const wrapper  = document.getElementById('mainContentWrapper');
+            if (!sidebar) return;
+
+            const collapsed = sidebar.classList.toggle('collapsed');
+            wrapper && wrapper.classList.toggle('sidebar-collapsed', collapsed);
+            localStorage.setItem('driverSidebarCollapsed', collapsed);
+            updateTooltipListeners(collapsed);
+        }
+
+        /* ── Mobile: slide in/out ── */
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.toggle('show');
+        }
+
+        /* ── Tooltip system (fixed-position, escapes sidebar overflow) ── */
+        let activeTooltip = null;
+
+        function updateTooltipListeners(collapsed) {
+            const links = document.querySelectorAll('#sidebarNav .nav-link');
+            if (collapsed) {
+                links.forEach(l => {
+                    l.addEventListener('mouseenter', showTooltip);
+                    l.addEventListener('mouseleave', hideTooltip);
+                });
+            } else {
+                links.forEach(l => {
+                    l.removeEventListener('mouseenter', showTooltip);
+                    l.removeEventListener('mouseleave', hideTooltip);
+                });
+                hideTooltip();
+            }
+        }
+
+        function showTooltip() {
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar || !sidebar.classList.contains('collapsed')) return;
+            hideTooltip();
+            const label = this.getAttribute('data-label');
+            if (!label) return;
+
+            const rect = this.getBoundingClientRect();
+            const tip  = document.createElement('div');
+            tip.className   = 'nav-tooltip';
+            tip.textContent = label;
+            document.body.appendChild(tip);
+
+            const railW = parseInt(
+                getComputedStyle(document.documentElement)
+                    .getPropertyValue('--sidebar-collapsed-width')
+            );
+            tip.style.left = (railW + 10) + 'px';
+            tip.style.top  = (rect.top + rect.height / 2 - tip.offsetHeight / 2) + 'px';
+
+            requestAnimationFrame(() => tip.classList.add('visible'));
+            activeTooltip = tip;
+        }
+
+        function hideTooltip() {
+            if (activeTooltip) { activeTooltip.remove(); activeTooltip = null; }
+        }
+
+        /* ── Restore saved state on page load ── */
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.innerWidth <= 1024) return;
+
+            const sidebar = document.getElementById('sidebar');
+            const wrapper = document.getElementById('mainContentWrapper');
+            const saved   = localStorage.getItem('driverSidebarCollapsed') === 'true';
+
+            if (sidebar && saved) {
+                sidebar.classList.add('collapsed');
+                wrapper && wrapper.classList.add('sidebar-collapsed');
+                updateTooltipListeners(true);
+            }
+        });
+
+        /* ── Keyboard shortcut Ctrl/Cmd+B ── */
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                e.preventDefault();
+                window.innerWidth > 1024 ? toggleSidebar() : toggleMobileSidebar();
+            }
+        });
+
+        /* ── Close mobile sidebar on outside click ── */
+        document.addEventListener('click', function (e) {
+            if (window.innerWidth > 1024) return;
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar && sidebar.classList.contains('show') && !sidebar.contains(e.target)) {
+                sidebar.classList.remove('show');
+            }
+        });
+    </script>
+    
+    <!-- Server-side data for client scripts -->
+    <input type="hidden" id="server-data" data-user-type="driver" data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}">
+
+    <!-- Socket.IO client for driver namespace -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sd = document.getElementById('server-data');
+            if (!sd) return;
+            const userId = sd.dataset.userId;
+            if (!userId) return;
+            try {
+                const socket = io('/driver', { transports: ['websocket'] });
+                socket.on('connect', () => console.debug('Socket.IO connected to /driver (websocket only)'));
+                socket.on('new_message', (payload) => {
+                    window.dispatchEvent(new CustomEvent('new_message', { detail: payload }));
+                });
+            } catch (e) {
+                console.warn('Socket.IO init failed', e);
+            }
+        });
+    </script>
+    
+    <!-- Include Delivery Offer Modal -->
+    {% include 'driver/delivery_offer_modal.html' %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
