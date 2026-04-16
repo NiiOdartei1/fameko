@@ -1,0 +1,1003 @@
+{% extends "base.html" %}
+
+{% block title %}Driver Registration - Fameko{% endblock %}
+
+{% block content %}
+<style>
+    .signup-container {
+        max-width: 1100px;
+        margin: 2rem auto;
+    }
+
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        position: relative;
+    }
+
+    .progress-steps::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #e9ecef;
+        z-index: 1;
+    }
+
+    .step {
+        text-align: center;
+        position: relative;
+        z-index: 2;
+        flex: 1;
+    }
+
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 0.5rem;
+        border-radius: 50%;
+        background: #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #6c757d;
+        transition: all 0.3s;
+    }
+
+    .step.active .step-circle {
+        background: #007bff;
+        color: white;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    }
+
+    .step.completed .step-circle {
+        background: #28a745;
+        color: white;
+    }
+
+    .step-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .step.active .step-label {
+        color: #007bff;
+        font-weight: 600;
+    }
+
+    .step.completed .step-label {
+        color: #28a745;
+    }
+
+    .form-step {
+        display: none;
+    }
+
+    .form-step.active {
+        display: block;
+        animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .document-requirement {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #007bff;
+        background: #f8f9fa;
+        border-radius: 0.25rem;
+    }
+
+    .document-requirement h5 {
+        margin: 0 0 0.25rem 0;
+        color: #495057;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .document-requirement p {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+    .document-requirement.optional {
+        border-left-color: #ffc107;
+    }
+
+    .document-requirement.optional h5::after {
+        content: ' (Optional)';
+        color: #ffc107;
+        font-weight: 400;
+        font-size: 0.8rem;
+    }
+
+    .upload-container {
+        position: relative;
+        min-height: 220px;
+    }
+
+    .upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: #f8f9fa;
+        min-height: 220px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .upload-area:hover {
+        border-color: #007bff;
+        background: #e7f1ff;
+    }
+
+    .upload-area.dragover {
+        border-color: #007bff;
+        background: #e7f1ff;
+    }
+
+    .upload-area.hidden {
+        display: none;
+    }
+
+    .upload-area i {
+        font-size: 2.5rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+
+    .document-upload-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-nav {
+        margin-top: 1.5rem;
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn-nav button {
+        flex: 1;
+    }
+
+    .document-preview {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        border: 2px solid #28a745;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 220px;
+        box-sizing: border-box;
+    }
+
+    .document-preview.show {
+        display: flex;
+    }
+
+    .preview-image {
+        max-width: 100%;
+        max-height: 160px;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+        object-fit: contain;
+    }
+
+    .preview-pdf {
+        width: 100%;
+        height: 160px;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .preview-info {
+        font-size: 0.65rem;
+        color: #6c757d;
+        text-align: center;
+        max-width: 100%;
+    }
+
+    .preview-info strong {
+        color: #495057;
+        display: block;
+        margin-bottom: 0.1rem;
+        font-weight: 600;
+    }
+
+    .preview-actions {
+        margin-top: 0.2rem;
+    }
+
+    .preview-actions a {
+        font-size: 0.6rem;
+        color: #dc3545;
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .preview-actions a:hover {
+        text-decoration: underline;
+    }
+
+    .pdf-placeholder {
+        width: 100%;
+        height: 160px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+        font-size: 3.5rem;
+    }
+
+    .preview-remove {
+        display: inline-block;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .preview-remove a {
+        color: #dc3545;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .preview-remove a:hover {
+        text-decoration: underline;
+    }
+
+    .vehicle-type-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .vehicle-option {
+        cursor: pointer;
+        padding: 1rem;
+        border: 3px solid #e9ecef;
+        border-radius: 0.75rem;
+        text-align: center;
+        transition: all 0.3s;
+        background: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        min-height: 150px;
+    }
+
+    .vehicle-option:hover {
+        border-color: #007bff;
+        background: #e7f1ff;
+    }
+
+    .vehicle-option.selected {
+        border-color: #28a745;
+        background: #d4edda;
+    }
+
+    .vehicle-option.hidden {
+        display: none;
+    }
+
+    .vehicle-icon {
+        width: 70px;
+        height: 70px;
+        object-fit: contain;
+    }
+
+    .vehicle-option p {
+        margin: 0;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #495057;
+    }
+
+    .vehicle-option.selected p {
+        color: #155724;
+        font-weight: 600;
+    }
+
+    .service-type-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .service-option {
+        cursor: pointer;
+        padding: 1.5rem 1rem;
+        border: 3px solid #e9ecef;
+        border-radius: 0.75rem;
+        text-align: center;
+        transition: all 0.3s;
+        background: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        min-height: 140px;
+    }
+
+    .service-option:hover {
+        border-color: #007bff;
+        background: #e7f1ff;
+    }
+
+    .service-option.selected {
+        border-color: #28a745;
+        background: #d4edda;
+    }
+
+    .service-option.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .service-option i {
+        font-size: 2rem;
+        color: #6c757d;
+    }
+
+    .service-option.selected i {
+        color: #155724;
+    }
+
+    .service-option p {
+        margin: 0.5rem 0 0 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .service-option.selected p {
+        color: #155724;
+    }
+
+    .service-option small {
+        margin: 0;
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    .service-option.selected small {
+        color: #155724;
+    }
+
+    @media (max-width: 768px) {
+        .service-type-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="container signup-container">
+    <div class="card">
+        <div class="card-body p-4">
+            <!-- Progress Steps -->
+            <div class="progress-steps">
+                <div class="step active" data-step="1">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">Basic Info</div>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Documents</div>
+                </div>
+            </div>
+
+            <h3 class="card-title text-center mb-4">Driver Registration</h3>
+
+            <!-- Step 1: Basic Information -->
+            <form id="signupForm" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" id="step-field" name="step" value="1">
+
+                <div class="form-step active" id="step-1">
+                    <p class="text-muted text-center mb-3">Step 1 of 2: Basic Information</p>
+
+                    <div class="mb-3">
+                        <label for="full_name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                        <input type="tel" class="form-control" id="phone" name="phone" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="license_number" class="form-label">Driver's License Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="license_number" name="license_number" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="region" class="form-label">Region of Operation <span class="text-danger">*</span></label>
+                        <select class="form-control" id="region" name="region" required>
+                            <option value="">Select Region</option>
+                            <option value="Savannah">Savannah</option>
+                            <option value="Northern">Northern</option>
+                            <option value="North East">North East</option>
+                            <option value="Upper East">Upper East</option>
+                            <option value="Upper West">Upper West</option>
+                            <option value="Ashanti">Ashanti</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Vehicle Type <span class="text-danger">*</span></label>
+                        <input type="hidden" id="vehicle_type" name="vehicle_type" required>
+                        <div class="vehicle-type-grid">
+                            <div class="vehicle-option" data-value="bicycle" data-regions="all">
+                                <img src="/static/icons/bicycle.avif" alt="Bicycle delivery" class="vehicle-icon">
+                                <p>Bicycle delivery</p>
+                            </div>
+                            <div class="vehicle-option" data-value="praggia" data-regions="Ashanti">
+                                <img src="/static/icons/praggia.jpg" alt="Praggia delivery" class="vehicle-icon">
+                                <p>Praggia delivery</p>
+                            </div>
+                            <div class="vehicle-option" data-value="abobo_yaa" data-regions="all">
+                                <img src="/static/icons/aboboyaa.jpg" alt="Abobo Yaa" class="vehicle-icon">
+                                <p>Abobo Yaa</p>
+                            </div>
+                            <div class="vehicle-option" data-value="motor_okada" data-regions="all">
+                                <img src="/static/icons/okada.jpg" alt="Motor Okada" class="vehicle-icon">
+                                <p>Motor Okada</p>
+                            </div>
+                            <div class="vehicle-option" data-value="truck" data-regions="all">
+                                <img src="/static/icons/truck.jpg" alt="Truck delivery" class="vehicle-icon">
+                                <p>Truck delivery</p>
+                            </div>
+                            <div class="vehicle-option" data-value="taxi_car" data-regions="all">
+                                <img src="/static/icons/car.png" alt="Taxi/Car" class="vehicle-icon">
+                                <p>Taxi/Car</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Service Type <span class="text-danger">*</span></label>
+                        <input type="hidden" id="service_type" name="service_type" required>
+                        <p class="text-muted small mb-2" id="service-type-instruction">Select a vehicle type first to see available service options</p>
+                        <div class="service-type-grid" id="service-type-options">
+                            <div class="service-option" data-value="package_delivery" data-vehicles="bicycle,abobo_yaa,truck,taxi_car,motor_okada,praggia">
+                                <i class="fas fa-box"></i>
+                                <p>Package Delivery</p>
+                                <small>Deliver packages only</small>
+                            </div>
+                            <div class="service-option" data-value="personal_transportation" data-vehicles="taxi_car,motor_okada,praggia">
+                                <i class="fas fa-users"></i>
+                                <p>Personal Transportation</p>
+                                <small>Transport passengers only</small>
+                            </div>
+                            <div class="service-option" data-value="both" data-vehicles="taxi_car,motor_okada,praggia">
+                                <i class="fas fa-layer-group"></i>
+                                <p>Both Services</p>
+                                <small>Deliver packages and transport passengers</small>
+                            </div>
+                        </div>
+                        <p class="text-muted small" id="service-type-note" style="display: none; margin-top: 0.5rem;">Note: Your selected vehicle restricts available service options</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="vehicle_number" class="form-label">Vehicle Plate Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="vehicle_number" name="vehicle_number" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <small class="form-text text-muted">Minimum 8 characters</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+
+                    <div class="btn-nav">
+                        <button type="button" class="btn btn-primary" onclick="validateStep1AndNext()">
+                            Continue to Documents <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Document Verification -->
+                <div class="form-step" id="step-2">
+                    <p class="text-muted text-center mb-3">Step 2 of 2: Document Verification</p>
+
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Document Requirements</strong>
+                        <p class="mb-0">Please upload clear, readable images of all required documents. All files must be in JPG, PNG, or PDF format and not exceed 10MB each.</p>
+                    </div>
+
+                    <!-- Required Documents -->
+                    <div class="document-upload-group">
+                        <h5 class="mb-3"><i class="fas fa-check-circle text-danger"></i> Required Documents</h5>
+
+                        <div class="document-requirement">
+                            <h5>1. Profile Picture</h5>
+                            <p>Clear, recent photo of your face (passport-style)</p>
+                            <div class="upload-container">
+                                <div class="upload-area" onclick="document.getElementById('profile_pic').click()">
+                                    <input type="file" id="profile_pic" name="profile_pic" accept="image/*" style="display: none;" required>
+                                    <i class="fas fa-camera"></i>
+                                    <div>Click to upload or drag & drop</div>
+                                    <small class="text-muted">JPG, PNG (Max 10MB)</small>
+                                </div>
+                                <div class="document-preview" id="preview-profile_pic"></div>
+                            </div>
+                        </div>
+
+                        <div class="document-requirement">
+                            <h5>2. Driver's License</h5>
+                            <p>Valid driver's license (both sides if possible)</p>
+                            <div class="upload-container">
+                                <div class="upload-area" onclick="document.getElementById('drivers_license').click()">
+                                    <input type="file" id="drivers_license" name="drivers_license" accept="image/*,.pdf" style="display: none;" required>
+                                    <i class="fas fa-id-card"></i>
+                                    <div>Click to upload or drag & drop</div>
+                                    <small class="text-muted">JPG, PNG, PDF (Max 10MB)</small>
+                                </div>
+                                <div class="document-preview" id="preview-drivers_license"></div>
+                            </div>
+                        </div>
+
+                        <div class="document-requirement">
+                            <h5>3. Vehicle Insurance Certificate</h5>
+                            <p>Insurance certification letter or sticker showing valid coverage</p>
+                            <div class="upload-container">
+                                <div class="upload-area" onclick="document.getElementById('insurance_cert').click()">
+                                    <input type="file" id="insurance_cert" name="insurance_cert" accept="image/*,.pdf" style="display: none;" required>
+                                    <i class="fas fa-file-invoice"></i>
+                                    <div>Click to upload or drag & drop</div>
+                                    <small class="text-muted">JPG, PNG, PDF (Max 10MB)</small>
+                                </div>
+                                <div class="document-preview" id="preview-insurance_cert"></div>
+                            </div>
+                        </div>
+
+                        <div class="document-requirement">
+                            <h5>4. Roadworthiness Certificate</h5>
+                            <p>Vehicle roadworthiness sticker (valid inspection certificate)</p>
+                            <div class="upload-container">
+                                <div class="upload-area" onclick="document.getElementById('roadworthy_cert').click()">
+                                    <input type="file" id="roadworthy_cert" name="roadworthy_cert" accept="image/*,.pdf" style="display: none;" required>
+                                    <i class="fas fa-certificate"></i>
+                                    <div>Click to upload or drag & drop</div>
+                                    <small class="text-muted">JPG, PNG, PDF (Max 10MB)</small>
+                                </div>
+                                <div class="document-preview" id="preview-roadworthy_cert"></div>
+                            </div>
+                        </div>
+
+                        <div class="document-requirement">
+                            <h5>5. Ghana Card</h5>
+                            <p>National identification (Ghana Card for verification purposes)</p>
+                            <div class="upload-container">
+                                <div class="upload-area" onclick="document.getElementById('ghana_card').click()">
+                                    <input type="file" id="ghana_card" name="ghana_card" accept="image/*,.pdf" style="display: none;" required>
+                                    <i class="fas fa-passport"></i>
+                                    <div>Click to upload or drag & drop</div>
+                                    <small class="text-muted">JPG, PNG, PDF (Max 10MB)</small>
+                                </div>
+                                <div class="document-preview" id="preview-ghana_card"></div>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Note:</strong> Your documents will be verified by our team within 24-48 hours. You'll receive an email notification once verification is complete.
+                    </div>
+
+                    <div class="btn-nav">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="validateStep2AndSubmit()">
+                            <i class="fas fa-check"></i> Complete Registration
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <hr class="my-4">
+
+            <p class="text-center text-muted small mb-0">
+                Already have an account? <a href="/driver/login" class="text-primary text-decoration-none">Login here</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize vehicle options
+    function initializeVehicleSelection() {
+        const vehicleOptions = document.querySelectorAll('.vehicle-option');
+        
+        // Add click handlers to vehicle options
+        vehicleOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove previous selection
+                vehicleOptions.forEach(v => v.classList.remove('selected'));
+                
+                // Select this option
+                this.classList.add('selected');
+                
+                // Set the hidden field value
+                const vehicleValue = this.dataset.value;
+                document.getElementById('vehicle_type').value = vehicleValue;
+                
+                // Update service type options based on vehicle selection
+                updateServiceTypeOptions(vehicleValue);
+            });
+        });
+
+        // Handle region change to show/hide Praggia
+        const regionSelect = document.getElementById('region');
+        regionSelect.addEventListener('change', function() {
+            const selectedRegion = this.value;
+            updateVehicleOptions(selectedRegion);
+        });
+        
+        // Initialize service type options
+        initializeServiceTypeSelection();
+    }
+
+    // Update service type options based on selected vehicle
+    function updateServiceTypeOptions(vehicleType) {
+        const serviceTypeContainer = document.getElementById('service-type-options');
+        const serviceOptions = document.querySelectorAll('.service-option');
+        const serviceTypeNote = document.getElementById('service-type-note');
+        const serviceTypeInstruction = document.getElementById('service-type-instruction');
+        
+        // Hide instruction text now that vehicle is selected
+        if (vehicleType) {
+            serviceTypeInstruction.style.display = 'none';
+        }
+        
+        // Filter service options based on vehicle type
+        const restrictedVehicles = ['bicycle', 'abobo_yaa', 'truck'];
+        const showAllServices = !restrictedVehicles.includes(vehicleType);
+        
+        serviceOptions.forEach(option => {
+            const availableVehicles = option.dataset.vehicles.split(',');
+            const canUseThisService = availableVehicles.includes(vehicleType);
+            
+            if (!canUseThisService) {
+                option.classList.add('disabled');
+                option.style.pointerEvents = 'none';
+                option.style.opacity = '0.4';
+            } else {
+                option.classList.remove('disabled');
+                option.style.pointerEvents = 'auto';
+                option.style.opacity = '1';
+                
+                // Deselect if was selected before and now disabled
+                option.classList.remove('selected');
+            }
+        });
+        
+        // Show note if restricted vehicle
+        if (!showAllServices) {
+            serviceTypeNote.style.display = 'block';
+        } else {
+            serviceTypeNote.style.display = 'none';
+        }
+        
+        // Clear previous service type selection
+        document.getElementById('service_type').value = '';
+    }
+
+    // Initialize service type selection handlers
+    function initializeServiceTypeSelection() {
+        const serviceOptions = document.querySelectorAll('.service-option');
+        
+        serviceOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Skip if disabled
+                if (this.classList.contains('disabled')) {
+                    alert('This service is not available for your selected vehicle');
+                    return;
+                }
+                
+                // Remove previous selection
+                serviceOptions.forEach(o => o.classList.remove('selected'));
+                
+                // Select this option
+                this.classList.add('selected');
+                
+                // Set the hidden field value
+                document.getElementById('service_type').value = this.dataset.value;
+            });
+        });
+    }
+
+    // Update vehicle options based on selected region
+    function updateVehicleOptions(region) {
+        const vehicleOptions = document.querySelectorAll('.vehicle-option');
+        let selectedVehicle = document.getElementById('vehicle_type').value;
+        
+        vehicleOptions.forEach(option => {
+            const vehicleValue = option.dataset.value;
+            
+            // Special handling for Ashanti - only show Praggia
+            if (region === 'Ashanti') {
+                if (vehicleValue === 'praggia') {
+                    option.classList.remove('hidden');
+                } else {
+                    option.classList.add('hidden');
+                    
+                    // If this vehicle was selected, deselect it
+                    if (option.dataset.value === selectedVehicle) {
+                        option.classList.remove('selected');
+                        document.getElementById('vehicle_type').value = '';
+                        document.getElementById('service_type').value = '';
+                    }
+                }
+            } else {
+                // For non-Ashanti regions, hide Praggia and show all others
+                if (vehicleValue === 'praggia') {
+                    option.classList.add('hidden');
+                    
+                    // If this vehicle was selected, deselect it
+                    if (option.dataset.value === selectedVehicle) {
+                        option.classList.remove('selected');
+                        document.getElementById('vehicle_type').value = '';
+                        document.getElementById('service_type').value = '';
+                    }
+                } else {
+                    option.classList.remove('hidden');
+                }
+            }
+        });
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeVehicleSelection();
+        
+        // If region is selected, update vehicle options
+        const region = document.getElementById('region').value;
+        if (region) {
+            updateVehicleOptions(region);
+        }
+    });
+
+    function validateStep1AndNext() {
+        // Validate step 1
+        const fullName = document.getElementById('full_name').value;
+        const email = document.getElementById('email').value;
+        const phone = document.getElementById('phone').value;
+        const licenseNumber = document.getElementById('license_number').value;
+        const region = document.getElementById('region').value;
+        const vehicleType = document.getElementById('vehicle_type').value;
+        const vehicleNumber = document.getElementById('vehicle_number').value;
+        const serviceType = document.getElementById('service_type').value;
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+
+        if (!fullName || !email || !phone || !licenseNumber || !region || !vehicleType || !vehicleNumber || !serviceType || !password || !confirmPassword) {
+            alert('Please fill out all required fields, including service type');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            alert('Passwords do not match');
+            return;
+        }
+
+        if (password.length < 8) {
+            alert('Password must be at least 8 characters');
+            return;
+        }
+
+        // Submit step 1 to backend to store in session
+        const formData = new FormData(document.getElementById('signupForm'));
+        formData.set('step', '1');
+
+        fetch('/driver/register', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Move to step 2
+                showStep(2);
+            } else {
+                alert(data.message || 'Error saving information');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving information. Please try again.');
+        });
+    }
+
+    function validateStep2AndSubmit() {
+        // Check required documents
+        const requiredDocs = ['profile_pic', 'drivers_license', 'insurance_cert', 'roadworthy_cert', 'ghana_card'];
+        for (const docId of requiredDocs) {
+            const fileInput = document.getElementById(docId);
+            if (!fileInput.files || !fileInput.files[0]) {
+                alert(`Please upload ${docId.replace(/_/g, ' ')}`);
+                return;
+            }
+        }
+
+        // Set step field and submit
+        document.getElementById('step-field').value = '2';
+        document.getElementById('signupForm').submit();
+    }
+
+    function nextStep() {
+        validateStep1AndNext();
+    }
+
+    function prevStep() {
+        showStep(1);
+    }
+
+    function showStep(step) {
+        // Hide all steps
+        document.querySelectorAll('.form-step').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.step').forEach(el => el.classList.remove('active', 'completed'));
+
+        // Show current step
+        document.getElementById(`step-${step}`).classList.add('active');
+        document.querySelector(`[data-step="${step}"]`).classList.add('active');
+
+        // Mark previous steps as completed
+        for (let i = 1; i < step; i++) {
+            document.querySelector(`[data-step="${i}"]`).classList.add('completed');
+        }
+
+        document.getElementById('step-field').value = step;
+        
+        // Scroll to top
+        window.scrollTo(0, 0);
+    }
+
+    // File upload and preview handlers
+    const fileInputs = ['profile_pic', 'drivers_license', 'insurance_cert', 'roadworthy_cert', 'ghana_card'];
+    
+    fileInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.addEventListener('change', function() {
+                handleFilePreview(inputId, this.files[0]);
+            });
+
+            // Drag and drop
+            const uploadArea = input.parentElement;
+            if (uploadArea && uploadArea.classList.contains('upload-area')) {
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    if (e.dataTransfer.files.length) {
+                        input.files = e.dataTransfer.files;
+                        handleFilePreview(inputId, input.files[0]);
+                    }
+                });
+            }
+        }
+    });
+
+    function handleFilePreview(inputId, file) {
+        const uploadArea = document.getElementById(inputId).closest('.upload-area');
+        const previewContainer = document.getElementById(`preview-${inputId}`);
+        if (!previewContainer) return;
+
+        if (!file) {
+            // Clear preview if no file
+            previewContainer.classList.remove('show');
+            previewContainer.innerHTML = '';
+            if (uploadArea) uploadArea.classList.remove('hidden');
+            return;
+        }
+
+        const isImage = file.type.startsWith('image/');
+        const isPdf = file.type === 'application/pdf';
+
+        if (isImage) {
+            // Handle image preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewContainer.innerHTML = `
+                    <img src="${e.target.result}" class="preview-image" alt="Document preview">
+                    <div class="preview-actions">
+                        <a onclick="clearFilePreview('${inputId}')">Remove</a>
+                    </div>
+                `;
+                previewContainer.classList.add('show');
+                if (uploadArea) uploadArea.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        } else if (isPdf) {
+            // Handle PDF preview with icon
+            previewContainer.innerHTML = `
+                <div style="font-size: 3rem; color: #dc3545; margin-bottom: 0.5rem;">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <div class="preview-actions">
+                    <a onclick="clearFilePreview('${inputId}')">Remove</a>
+                </div>
+            `;
+            previewContainer.classList.add('show');
+            if (uploadArea) uploadArea.classList.add('hidden');
+        } else {
+            // Invalid file type
+            alert('Please upload an image (JPG, PNG) or PDF file');
+            document.getElementById(inputId).value = '';
+            previewContainer.classList.remove('show');
+            if (uploadArea) uploadArea.classList.remove('hidden');
+        }
+    }
+
+    function clearFilePreview(inputId) {
+        const input = document.getElementById(inputId);
+        const uploadArea = input.closest('.upload-area');
+        const previewContainer = document.getElementById(`preview-${inputId}`);
+        
+        // Clear file input
+        input.value = '';
+        
+        // Hide preview and show upload area
+        previewContainer.classList.remove('show');
+        previewContainer.innerHTML = '';
+        if (uploadArea) uploadArea.classList.remove('hidden');
+    }
+</script>
+{% endblock %}
