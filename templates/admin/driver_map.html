@@ -1,0 +1,936 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Driver Location Tracking - Admin{% endblock %}
+
+{% block page_title %}Driver Location Tracking{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-sm btn-primary" onclick="refreshMap()" title="Refresh locations">
+    <i class="fas fa-sync-alt me-1"></i> Refresh
+</button>
+<button class="btn btn-sm btn-secondary ms-2" onclick="exportData()" title="Export data">
+    <i class="fas fa-download me-1"></i> Export
+</button>
+{% endblock %}
+
+{% block main_content %}
+<style>
+/* Modern Driver Map Styles */
+.driver-map-container {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    min-height: calc(100vh - 80px);
+    padding: 1.5rem;
+    border-radius: 1rem;
+}
+
+/* Map Legend */
+.map-legend {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.legend-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.legend-online { background: #10b981; }
+.legend-delivery { background: #3b82f6; }
+.legend-idle { background: #f59e0b; }
+.legend-offline { background: #6b7280; }
+.legend-admin { background: #7c3aed; }
+
+/* Driver List */
+.driver-item {
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.driver-item:hover {
+    background: #f3f4f6;
+    border-color: #3b82f6;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+}
+
+.driver-item.selected {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.driver-name {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+}
+
+.driver-status {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+}
+
+.badge-online { background: #d1fae5; color: #065f46; }
+.badge-delivery { background: #dbeafe; color: #0c2d6b; }
+.badge-idle { background: #fef3c7; color: #92400e; }
+.badge-offline { background: #e5e7eb; color: #1f2937; }
+
+/* Filter Controls */
+.filter-controls {
+    background: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+}
+
+.filter-chip {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-chip:hover {
+    background: #e5e7eb;
+}
+
+.filter-chip.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* Driver Details Panel */
+.driver-details-panel {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: none;
+}
+
+.driver-details-panel.show {
+    display: block;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.detail-value {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.map-card {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.map-card:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.map-card .card-header {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border: none;
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+}
+
+.map-card .card-header h5 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.map-container {
+    position: relative;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+#adminMap {
+    height: 600px;
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 2px solid #e2e8f0;
+}
+
+/* Stats Cards */
+.stats-card {
+    border: none;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.stats-card .card-body {
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.stats-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stats-label {
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Driver Sidebar */
+.driver-sidebar {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.driver-sidebar .card-header {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    padding: 1rem 1.25rem;
+}
+
+.driver-sidebar .card-header h5 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.driver-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.driver-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.driver-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.driver-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.driver-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Action Buttons */
+.action-btn {
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #adminMap {
+        height: 400px;
+    }
+    
+    .driver-map-container {
+        padding: 1rem;
+    }
+}
+</style>
+
+<div class="driver-map-container">
+    <div class="row">
+        <!-- Map Section -->
+        <div class="col-lg-9">
+            <div class="card map-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-map-marked-alt"></i> Live Driver Locations</h5>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="centerMapOnAllDrivers()" title="Center on all drivers">
+                                <i class="fas fa-compress"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="toggleFullscreen()" title="Fullscreen">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="map-container" id="mapWrapper">
+                        <div id="adminMap"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Statistics Below Map -->
+            <div class="row g-3 mt-3">
+                <div class="col-md-3 col-6">
+                    <div class="card stats-card">
+                        <div class="card-body">
+                            <div class="stats-value" id="activeDriversCount">0</div>
+                            <div class="stats-label">Active Drivers</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card stats-card">
+                        <div class="card-body">
+                            <div class="stats-value" id="onlineDriversCount">0</div>
+                            <div class="stats-label">Online Now</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card stats-card">
+                        <div class="card-body">
+                            <div class="stats-value" id="onDeliveryCount">0</div>
+                            <div class="stats-label">On Delivery</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card stats-card">
+                        <div class="card-body">
+                            <div class="stats-value" id="avgDeliveryTime">0m</div>
+                            <div class="stats-label">Avg Delivery</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Driver Sidebar -->
+        <div class="col-lg-3">
+            <!-- Map Legend -->
+            <div class="map-legend mb-3">
+                <h6 style="margin-bottom: 1rem; font-weight: 600;"><i class="fas fa-key"></i> Map Legend</h6>
+                <div class="legend-item">
+                    <div class="legend-icon legend-online">●</div>
+                    <span>Online & Idle</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon legend-delivery">●</div>
+                    <span>On Delivery</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon legend-idle">●</div>
+                    <span>Idle (No Orders)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon legend-offline">●</div>
+                    <span>Offline</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon legend-admin">◆</div>
+                    <span>Your Location</span>
+                </div>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="filter-controls">
+                <h6 style="margin-bottom: 0.75rem; font-weight: 600;"><i class="fas fa-filter"></i> Filters</h6>
+                <div>
+                    <span class="filter-chip active" onclick="filterDrivers('all')" data-filter="all">All</span>
+                    <span class="filter-chip" onclick="filterDrivers('online')" data-filter="online">Online</span>
+                    <span class="filter-chip" onclick="filterDrivers('delivery')" data-filter="delivery">On Delivery</span>
+                    <span class="filter-chip" onclick="filterDrivers('idle')" data-filter="idle">Idle</span>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="mb-3">
+                <label class="form-label" style="font-weight: 600;">Search Drivers</label>
+                <input type="text" class="form-control form-control-sm" id="driverSearch" placeholder="Driver ID, name...">
+            </div>
+
+            <!-- Driver List -->
+            <div class="card driver-sidebar">
+                <div class="card-header">
+                    <h5><i class="fas fa-users"></i> Drivers <span id="driverCount" class="badge bg-primary ms-2">0</span></h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="adminDriverList" class="driver-list">
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Loading drivers...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Driver Details Panel -->
+            <div class="driver-details-panel mt-3" id="selectedDriverPanel">
+                <h6 style="margin-bottom: 1rem; font-weight: 600;" id="selectedDriverName">Driver Details</h6>
+                <div id="driverInfoContent">
+                    <div class="text-center text-muted">No driver selected</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="clearDriverSelection()">
+                    Clear Selection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<!-- Leaflet MarkerCluster CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet MarkerCluster JS -->
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+<script>
+let adminMap;
+let drivers = {};
+let selectedDriver = null;
+let markers = {};
+let markerClusterGroup = null;
+let currentFilter = 'all';
+let driverUpdateInterval = null;
+let currentRegion = 'Greater Accra';
+let tileLayer = null;
+
+// Region coordinates for map centering
+const REGION_COORDS = {
+    'Savannah': [10.7595, -1.5616],
+    'Northern': [10.8021, -1.2871],
+    'North East': [10.9055, -0.5515],
+    'Upper East': [10.8623, -1.0337],
+    'Upper West': [10.3369, -2.3408],
+    'Ashanti': [6.6200, -1.6300],
+    'Bono': [7.7449, -2.4380],
+    'Bono East': [8.0837, -0.6144],
+    'Ahafo': [6.8189, -2.2517],
+    'Central': [5.1982, -1.2500],
+    'Eastern': [6.1256, -0.7597],
+    'Greater Accra': [5.6037, -0.1869],
+    'Oti': [8.8500, 0.7333],
+    'Volta': [6.5000, 0.8333],
+    'Western': [5.3667, -2.4333],
+    'Western North': [5.5500, -2.8833]
+};
+
+// Initialize admin map
+function initAdminMap() {
+    if (typeof L === 'undefined') {
+        console.error('Leaflet library not loaded');
+        document.getElementById('adminMap').innerHTML = '<div class="alert alert-danger m-3">Map library failed to load. Please check your internet connection.</div>';
+        return;
+    }
+    
+    try {
+        adminMap = L.map('adminMap').setView([5.6037, -0.1869], 13);
+        
+        // Initialize tile layer
+        tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(adminMap);
+        
+        // Initialize marker cluster group
+        markerClusterGroup = L.markerClusterGroup({
+            maxClusterRadius: 80,
+            disableClusteringAtZoom: 17
+        });
+        adminMap.addLayer(markerClusterGroup);
+        
+        // Get admin's location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const adminLat = position.coords.latitude;
+                    const adminLng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    adminMap.setView([adminLat, adminLng], 15);
+                    
+                    const adminMarker = L.marker([adminLat, adminLng], {
+                        title: 'Your Location',
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div style="background: #7c3aed; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">◆</div>`,
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        })
+                    }).addTo(adminMap);
+                    
+                    window.adminLocation = { lat: adminLat, lng: adminLng, accuracy: accuracy };
+                    loadAdminDrivers();
+                },
+                function(error) {
+                    console.warn('Location access:', error.message);
+                    loadAdminDrivers();
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
+        } else {
+            loadAdminDrivers();
+        }
+        
+        // Auto-refresh every 15 seconds for live updates
+        driverUpdateInterval = setInterval(loadAdminDrivers, 15000);
+        
+        console.log('Map initialized successfully with clustering');
+    } catch (error) {
+        console.error('Error initializing map:', error);
+    }
+}
+
+// Load all drivers
+function loadAdminDrivers() {
+    fetch('/admin/locations')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            displayDriverData(data);
+            renderDriverList();
+        })
+        .catch(error => console.error('Error loading drivers:', error));
+}
+
+// Display driver data on map
+function displayDriverData(data) {
+    if (data.locations && data.locations.length > 0) {
+        data.locations.forEach(location => {
+            drivers[location.driver_id] = location;
+            updateAdminDriverMarker(location);
+        });
+    }
+    
+    updateStatistics();
+}
+
+// Update driver marker with status colors
+function updateAdminDriverMarker(location) {
+    const driverId = location.driver_id;
+    
+    // Determine status and color
+    let status = 'offline';
+    let color = '#6b7280'; // offline gray
+    
+    if (location.lat && location.lng) {
+        if (location.delivery_id) {
+            status = 'delivery';
+            color = '#3b82f6'; // blue for on delivery
+        } else {
+            status = 'online';
+            color = '#10b981'; // green for online
+        }
+    }
+    
+    // Remove existing marker
+    if (markers[driverId]) {
+        markerClusterGroup.removeLayer(markers[driverId]);
+    }
+    
+    const marker = L.marker([location.lat || 0, location.lng || 0], {
+        title: `Driver ${driverId}`,
+        icon: L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div style="background: ${color}; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+                ${driverId}
+            </div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        })
+    });
+    
+    const popupContent = `
+        <div style="min-width: 260px;">
+            <strong>Driver #${driverId}</strong>
+            <span class="status-badge ${
+                status === 'delivery' ? 'badge-delivery' : 
+                status === 'online' ? 'badge-online' : 
+                'badge-offline'
+            }" style="float:right; font-size:11px;">
+                ${status.toUpperCase()}
+            </span><br>
+            <small style="color: #64748b;">Lat: ${(location.lat || 0).toFixed(4)}, Lng: ${(location.lng || 0).toFixed(4)}</small><br>
+            <small style="color: #64748b;">Last: ${new Date(location.timestamp * 1000).toLocaleTimeString()}</small>
+            ${location.delivery_id ? `<br><small style="color: #3b82f6;"><strong>Delivery:</strong> #${location.delivery_id}</small>` : ''}
+        </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+    marker.on('click', function() {
+        selectDriver(driverId);
+    });
+    
+    markers[driverId] = marker;
+    markerClusterGroup.addLayer(marker);
+}
+
+// Select driver and show details
+function selectDriver(driverId) {
+    selectedDriver = driverId;
+    const driver = drivers[driverId];
+    
+    if (!driver) return;
+    
+    // Highlight selected driver
+    document.querySelectorAll('.driver-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    const selectedItem = document.querySelector(`[data-driver-id="${driverId}"]`);
+    if (selectedItem) selectedItem.classList.add('selected');
+    
+    // Show details panel
+    updateDriverDetailsPanel(driver);
+    
+    // Switch to driver's region and center map
+    if (driver.region) {
+        switchToRegion(driver.region);
+    }
+    
+    // Center map on driver
+    if (driver.lat && driver.lng) {
+        adminMap.setView([driver.lat, driver.lng], 17);
+        displayMarkersForSelectedDriver(driverId);
+    }
+}
+
+// Switch map to a specific region
+function switchToRegion(region) {
+    if (currentRegion === region) return;
+    
+    currentRegion = region;
+    const coords = REGION_COORDS[region] || [5.6037, -0.1869];
+    
+    // Update map view to region center
+    adminMap.setView(coords, 13);
+    
+    // Log region switch
+    console.log(`Switched to ${region} region at ${coords}`);
+}
+
+// Clear driver selection
+function clearDriverSelection() {
+    selectedDriver = null;
+    document.querySelectorAll('.driver-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    document.getElementById('selectedDriverPanel').classList.remove('show');
+    centerMapOnAllDrivers();
+}
+
+// Update driver details panel
+function updateDriverDetailsPanel(driver) {
+    const panel = document.getElementById('selectedDriverPanel');
+    const nameElem = document.getElementById('selectedDriverName');
+    const infoDiv = document.getElementById('driverInfoContent');
+    
+    nameElem.textContent = `Driver #${driver.driver_id}`;
+    
+    const statusClass = driver.delivery_id ? 'badge-delivery' : 
+                       (driver.lat ? 'badge-online' : 'badge-offline');
+    const statusText = driver.delivery_id ? 'On Delivery' : 
+                       (driver.lat ? 'Online' : 'Offline');
+    
+    let html = `
+        <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="status-badge ${statusClass}">${statusText}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Region</span>
+            <span class="detail-value">${driver.region || 'N/A'}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Location</span>
+            <span class="detail-value">${driver.lat ? `${driver.lat.toFixed(4)}, ${driver.lng.toFixed(4)}` : 'N/A'}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Last Updated</span>
+            <span class="detail-value">${new Date(driver.timestamp * 1000).toLocaleTimeString()}</span>
+        </div>
+    `;
+    
+    if (driver.delivery_id) {
+        html += `
+            <div class="detail-row">
+                <span class="detail-label">Current Delivery</span>
+                <span class="detail-value">#${driver.delivery_id}</span>
+            </div>
+        `;
+    }
+    
+    infoDiv.innerHTML = html;
+    panel.classList.add('show');
+}
+
+// Render driver list
+function renderDriverList() {
+    const list = document.getElementById('adminDriverList');
+    const driverArray = Object.values(drivers);
+    
+    if (driverArray.length === 0) {
+        list.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-users-slash"></i> No drivers</div>';
+        document.getElementById('driverCount').textContent = '0';
+        return;
+    }
+    
+    // Filter drivers based on current filter
+    let filteredDrivers = driverArray;
+    if (currentFilter === 'online') {
+        filteredDrivers = driverArray.filter(d => d.lat);
+    } else if (currentFilter === 'delivery') {
+        filteredDrivers = driverArray.filter(d => d.delivery_id);
+    } else if (currentFilter === 'idle') {
+        filteredDrivers = driverArray.filter(d => d.lat && !d.delivery_id);
+    }
+    
+    // Filter by search term
+    const searchTerm = document.getElementById('driverSearch').value.toLowerCase();
+    if (searchTerm) {
+        filteredDrivers = filteredDrivers.filter(d => 
+            String(d.driver_id).includes(searchTerm)
+        );
+    }
+    
+    list.innerHTML = filteredDrivers.map(driver => {
+        const statusClass = driver.delivery_id ? 'badge-delivery' : 
+                           (driver.lat ? 'badge-online' : 'badge-offline');
+        const statusText = driver.delivery_id ? 'On Delivery' : 
+                           (driver.lat ? 'Online' : 'Offline');
+        
+        return `
+            <div class="driver-item ${selectedDriver === driver.driver_id ? 'selected' : ''}" 
+                 data-driver-id="${driver.driver_id}"
+                 onclick="selectDriver(${driver.driver_id})">
+                <div class="driver-name">Driver #${driver.driver_id}</div>
+                <div class="driver-status">
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                    ${driver.delivery_id ? `<span class="status-badge badge-delivery">Delivery #${driver.delivery_id}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('driverCount').textContent = driverArray.length;
+}
+
+// Filter drivers
+function filterDrivers(filter) {
+    currentFilter = filter;
+    
+    // Update active filter chip
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.classList.remove('active');
+    });
+    document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+    
+    renderDriverList();
+}
+
+// Update statistics
+function updateStatistics() {
+    const driverArray = Object.values(drivers);
+    const onlineDrivers = driverArray.filter(d => d.lat && d.lng);
+    const onDelivery = driverArray.filter(d => d.delivery_id);
+    
+    document.getElementById('activeDriversCount').textContent = driverArray.length;
+    document.getElementById('onlineDriversCount').textContent = onlineDrivers.length;
+    document.getElementById('onDeliveryCount').textContent = onDelivery.length;
+    
+    // Calculate average delivery time from backend
+    fetchAverageDeliveryTime();
+}
+
+// Fetch average delivery time
+function fetchAverageDeliveryTime() {
+    fetch('/admin/stats/avg-delivery-time')
+        .then(response => response.json())
+        .then(data => {
+            const avgTime = data.avg_time || 0;
+            document.getElementById('avgDeliveryTime').textContent = Math.round(avgTime) + 'm';
+        })
+        .catch(error => console.error('Error fetching avg time:', error));
+}
+
+// Display markers for selected driver
+function displayMarkersForSelectedDriver(driverId) {
+    // Could highlight the specific driver's route/path if needed
+}
+
+// Center map on all drivers
+function centerMapOnAllDrivers() {
+    const driverLocations = Object.values(drivers)
+        .filter(d => d.lat && d.lng)
+        .map(d => [d.lat, d.lng]);
+    
+    if (driverLocations.length > 0) {
+        const bounds = L.latLngBounds(driverLocations);
+        adminMap.fitBounds(bounds, { padding: [100, 100] });
+    }
+}
+
+// Toggle fullscreen
+function toggleFullscreen() {
+    const mapWrapper = document.getElementById('mapWrapper');
+    if (!document.fullscreenElement) {
+        mapWrapper.requestFullscreen().catch(err => console.error(err));
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// Refresh map
+function refreshMap() {
+    loadAdminDrivers();
+}
+
+// Export data as CSV
+function exportData() {
+    const driverArray = Object.values(drivers);
+    let csv = 'Driver ID,Status,Latitude,Longitude,Last Update,On Delivery\n';
+    
+    driverArray.forEach(driver => {
+        const status = driver.delivery_id ? 'On Delivery' : (driver.lat ? 'Online' : 'Offline');
+        const lastUpdate = new Date(driver.timestamp * 1000).toISOString();
+        csv += `${driver.driver_id},${status},${driver.lat || 'N/A'},${driver.lng || 'N/A'},${lastUpdate},${driver.delivery_id || 'N/A'}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `driver_locations_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Search drivers
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing driver map...');
+    
+    const mapElement = document.getElementById('adminMap');
+    if (!mapElement) {
+        console.error('Map element not found');
+        return;
+    }
+    
+    initAdminMap();
+    
+    // Search event listener
+    const searchInput = document.getElementById('driverSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', renderDriverList);
+    }
+    
+    // Initial load
+    updateStatistics();
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (driverUpdateInterval) {
+        clearInterval(driverUpdateInterval);
+    }
+});
+</script>
+{% endblock %}
