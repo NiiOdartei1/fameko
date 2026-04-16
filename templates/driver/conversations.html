@@ -1,0 +1,60 @@
+{% extends "driver/base_driver.html" %}
+
+{% block title %}Conversations{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Messages</strong>
+          <button id="refreshConvs" class="btn btn-sm btn-outline-secondary">Refresh</button>
+        </div>
+        <div class="list-group list-group-flush" id="convList" style="max-height:80vh; overflow:auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  async function loadConversations() {
+    try {
+      const res = await fetch('/driver/conversations');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.success) return;
+      const list = document.getElementById('convList');
+      list.innerHTML = '';
+      
+      if (data.conversations.length === 0) {
+        list.innerHTML = '<div class="list-group-item text-muted text-center py-4">No conversations yet</div>';
+        return;
+      }
+      
+      data.conversations.forEach(c => {
+        const el = document.createElement('a');
+        el.className = 'list-group-item list-group-item-action';
+        el.href = `/conversation/${c.id}`;
+        el.innerHTML = `
+          <div class="d-flex w-100 justify-content-between">
+            <strong>Delivery #${c.delivery_id||'—'}</strong>
+            <small class="text-muted">${c.last_message_at?new Date(c.last_message_at).toLocaleString():''}</small>
+          </div>
+          <div class="small text-truncate">${c.last_message||'(no messages)'}</div>
+        `;
+        list.appendChild(el);
+      });
+    } catch (e) { console.error('loadConversations error', e); }
+  }
+
+  document.getElementById('refreshConvs').addEventListener('click', loadConversations);
+  loadConversations();
+  
+  // Auto-refresh every 5 seconds
+  setInterval(loadConversations, 5000);
+});
+</script>
+
+{% endblock %}

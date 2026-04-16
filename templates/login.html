@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Login Options - Fameko{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center my-5">
+        <div class="col-md-6 col-lg-4">
+            <div class="card">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-truck text-primary" style="font-size: 3rem;"></i>
+                        <h4 class="card-title mt-3">Welcome to Fameko</h4>
+                        <p class="text-muted small">Choose your login type</p>
+                    </div>
+
+                    <div class="d-grid gap-3">
+                        <a href="/admin/login" class="btn btn-outline-primary">
+                            <i class="fas fa-user-shield"></i> Admin Login
+                        </a>
+                        <a href="/driver/login" class="btn btn-outline-success">
+                            <i class="fas fa-truck"></i> Driver Login
+                        </a>
+                        <a href="/customer/login" class="btn btn-outline-info">
+                            <i class="fas fa-user"></i> Customer Login
+                        </a>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="text-center">
+                        <p class="mb-0">New driver?</p>
+                        <a href="/driver/register" class="btn btn-sm btn-primary">
+                            <i class="fas fa-user-plus"></i> Register as Driver
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
