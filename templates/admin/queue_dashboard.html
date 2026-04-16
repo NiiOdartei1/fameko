@@ -1,0 +1,662 @@
+{% extends "base_admin.html" %}
+
+{% block title %}Queue Dashboard - Fameko Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="fw-bold mb-1">
+                <i class="fas fa-tasks me-2"></i>Queue Management Dashboard
+            </h2>
+            <p class="text-muted">Real-time delivery assignment pipeline</p>
+        </div>
+        <div class="col-auto">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary" id="autoRefreshBtn" onclick="toggleAutoRefresh()">
+                    <i class="fas fa-sync me-1"></i>Auto Refresh
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="refreshDashboard()">
+                    <i class="fas fa-redo me-1"></i>Refresh Now
+                </button>
+                <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                    <i class="fas fa-cog me-1"></i>Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row mb-4">
+        <!-- Pending Orders -->
+        <div class="col-lg-3 mb-3">
+            <div class="card border-0 shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small text-uppercase fw-bold mb-2">Pending Orders</p>
+                            <h2 class="fw-bold mb-0" id="pendingCount">0</h2>
+                        </div>
+                        <div class="text-warning" style="font-size: 2rem;">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Awaiting assignment</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assigned Orders -->
+        <div class="col-lg-3 mb-3">
+            <div class="card border-0 shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small text-uppercase fw-bold mb-2">Assigned Orders</p>
+                            <h2 class="fw-bold mb-0" id="assignedCount">0</h2>
+                        </div>
+                        <div class="text-info" style="font-size: 2rem;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Driver accepted</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- In Transit -->
+        <div class="col-lg-3 mb-3">
+            <div class="card border-0 shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small text-uppercase fw-bold mb-2">In Transit</p>
+                            <h2 class="fw-bold mb-0" id="inTransitCount">0</h2>
+                        </div>
+                        <div class="text-primary" style="font-size: 2rem;">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">On the way</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delivered -->
+        <div class="col-lg-3 mb-3">
+            <div class="card border-0 shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small text-uppercase fw-bold mb-2">Delivered</p>
+                            <h2 class="fw-bold mb-0" id="deliveredCount">0</h2>
+                        </div>
+                        <div class="text-success" style="font-size: 2rem;">
+                            <i class="fas fa-check"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Completed today</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- SLA Metrics -->
+        <div class="col-lg-4 mb-4">
+            <div class="card border-0 shadow">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-hourglass-end me-2"></i>SLA Compliance
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- Assignment SLA -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="small fw-bold">Assignment SLA (30 min)</span>
+                            <span class="badge bg-success" id="assignmentSLABadge">95%</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div id="assignmentSLABar" class="progress-bar bg-success" style="width: 95%"></div>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-check me-1"></i><span id="assignmentSLAText">95%</span> on time
+                        </small>
+                    </div>
+
+                    <!-- Delivery SLA -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="small fw-bold">Delivery SLA (60 min)</span>
+                            <span class="badge bg-success" id="deliverySLABadge">92%</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div id="deliverySLABar" class="progress-bar bg-success" style="width: 92%"></div>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-check me-1"></i><span id="deliverySLAText">92%</span> on time
+                        </small>
+                    </div>
+
+                    <!-- Customer Satisfaction SLA -->
+                    <div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="small fw-bold">Customer Satisfaction</span>
+                            <span class="badge bg-success" id="satisfactionBadge">4.7/5</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div id="satisfactionBar" class="progress-bar bg-success" style="width: 94%"></div>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-star me-1 text-warning"></i><span id="satisfactionText">4.7/5</span> average rating
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Queue Status by Hour -->
+        <div class="col-lg-8 mb-4">
+            <div class="card border-0 shadow">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Queue Volume
+                    </h6>
+                    <select class="form-select form-select-sm" id="timeRangeSelect" onchange="updateCharts()" style="width: auto;">
+                        <option value="hour">Last Hour</option>
+                        <option value="day" selected>Last 24 Hours</option>
+                        <option value="week">Last 7 Days</option>
+                    </select>
+                </div>
+                <div class="card-body p-4">
+                    <svg id="queueChart" height="200" style="width: 100%;">
+                        <!-- Placeholder for chart (integrate with Chart.js) -->
+                        <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#999">
+                            Queue volume chart - Integration with Chart.js/ApexCharts recommended
+                        </text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Assignments -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-list me-2"></i>Recent Delivery Assignments
+                    </h6>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" onclick="filterAssignments('all')">All</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="filterAssignments('pending')">Pending</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="filterAssignments('assigned')">Assigned</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="filterAssignments('failed')">Failed</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Loading State -->
+                    <div id="assignmentsLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+
+                    <!-- Assignments Table -->
+                    <div id="assignmentsContent" style="display: none;">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Status</th>
+                                    <th>Driver</th>
+                                    <th>Attempts</th>
+                                    <th>Time in Queue</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignmentsTable">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" class="text-center py-5" style="display: none;">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No assignments found</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Failed Assignments (Queue) -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-exclamation-circle me-2 text-danger"></i>Failed Assignments (Dead Letter Queue)
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <!-- DLQ Table -->
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Reason</th>
+                                <th>Attempts</th>
+                                <th>Last Attempt</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dlqTable">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+
+                    <!-- Empty DLQ -->
+                    <div id="dlqEmpty" class="text-center py-5">
+                        <i class="fas fa-smile-wink fa-3x text-success mb-3"></i>
+                        <p class="text-success fw-bold">All assignments successful!</p>
+                        <p class="text-muted small">No failed assignments in queue</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title fw-bold">Dashboard Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Auto-Refresh Interval</label>
+                    <select class="form-select" id="refreshInterval">
+                        <option value="5000">5 seconds</option>
+                        <option value="10000" selected>10 seconds</option>
+                        <option value="30000">30 seconds</option>
+                        <option value="60000">1 minute</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Notifications</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="notifyFailed" checked>
+                        <label class="form-check-label" for="notifyFailed">
+                            Notify on assignment failure
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="notifySLA" checked>
+                        <label class="form-check-label" for="notifySLA">
+                            Notify on SLA breach
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Auto-Escalation</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="autoEscalate" checked>
+                        <label class="form-check-label" for="autoEscalate">
+                            Automatically escalate failed assignments
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Details Modal -->
+<div class="modal fade" id="assignmentDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title fw-bold">Assignment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-muted small mb-1">Order ID</p>
+                        <h6 class="fw-bold" id="detailOrderId">--</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted small mb-1">Status</p>
+                        <span id="detailStatus" class="badge bg-primary">--</span>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-muted small mb-1">Customer</p>
+                        <p class="mb-1" id="detailCustomer">--</p>
+                        <small class="text-muted" id="detailCustomerPhone">--</small>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted small mb-1">Assigned Driver</p>
+                        <p class="mb-1" id="detailDriver">--</p>
+                        <small class="text-muted" id="detailDriverPhone">--</small>
+                    </div>
+                </div>
+
+                <hr>
+
+                <p class="text-muted small mb-2 fw-bold">Delivery Details</p>
+                <div class="mb-3">
+                    <p class="small mb-1"><strong>Pickup:</strong> <span id="detailPickup">--</span></p>
+                    <p class="small"><strong>Dropoff:</strong> <span id="detailDropoff">--</span></p>
+                </div>
+
+                <hr>
+
+                <p class="text-muted small mb-2 fw-bold">Timeline</p>
+                <div id="detailTimeline" class="timeline">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="viewFullDetails()">View Full Details</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -0.85rem;
+    top: 0.5rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: #0d6efd;
+}
+
+.badge {
+    padding: 0.5rem 0.75rem;
+}
+</style>
+
+<script>
+let dashboardData = {
+    pending: 0,
+    assigned: 0,
+    in_transit: 0,
+    delivered: 0,
+    assignments: [],
+    dlq: [],
+    sla_metrics: {}
+};
+
+let autoRefreshInterval = null;
+let currentFilter = 'all';
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    refreshDashboard();
+    toggleAutoRefresh();
+    
+    // WebSocket for real-time updates
+    if (typeof io !== 'undefined') {
+        const socket = io();
+        socket.on('queue_updated', (data) => {
+            dashboardData = Object.assign(dashboardData, data);
+            updateDisplay();
+        });
+    }
+});
+
+// Refresh dashboard
+async function refreshDashboard() {
+    try {
+        // Fetch queue stats
+        const response = await fetch('/admin/queue/stats');
+        const data = await response.json();
+        
+        dashboardData.pending = data.pending_count || 0;
+        dashboardData.assigned = data.assigned_count || 0;
+        dashboardData.in_transit = data.in_transit_count || 0;
+        dashboardData.delivered = data.delivered_count || 0;
+        dashboardData.assignments = data.recent_assignments || [];
+        dashboardData.dlq = data.dead_letter_queue || [];
+        dashboardData.sla_metrics = data.sla_metrics || {};
+        
+        updateDisplay();
+    } catch (error) {
+        console.error('Error refreshing dashboard:', error);
+    }
+}
+
+// Update display
+function updateDisplay() {
+    // Update KPI cards
+    document.getElementById('pendingCount').textContent = dashboardData.pending;
+    document.getElementById('assignedCount').textContent = dashboardData.assigned;
+    document.getElementById('inTransitCount').textContent = dashboardData.in_transit;
+    document.getElementById('deliveredCount').textContent = dashboardData.delivered;
+    
+    // Update SLA metrics
+    if (dashboardData.sla_metrics) {
+        const assignSLA = dashboardData.sla_metrics.assignment_sla_compliance || 95;
+        const deliverySLA = dashboardData.sla_metrics.delivery_sla_compliance || 92;
+        
+        document.getElementById('assignmentSLABar').style.width = assignSLA + '%';
+        document.getElementById('assignmentSLAText').textContent = assignSLA.toFixed(0) + '%';
+        document.getElementById('deliverySLABadge').textContent = assignSLA.toFixed(0) + '%';
+        
+        document.getElementById('deliverySLABar').style.width = deliverySLA + '%';
+        document.getElementById('deliverySLAText').textContent = deliverySLA.toFixed(0) + '%';
+        document.getElementById('deliverySLABadge').textContent = deliverySLA.toFixed(0) + '%';
+    }
+    
+    // Populate assignments table
+    populateAssignmentsTable();
+    
+    // Populate DLQ table
+    populateDLQTable();
+}
+
+// Populate assignments table
+function populateAssignmentsTable() {
+    const tbody = document.getElementById('assignmentsTable');
+    const emptyState = document.getElementById('emptyState');
+    
+    let filtered = dashboardData.assignments;
+    if (currentFilter !== 'all') {
+        filtered = dashboardData.assignments.filter(a => a.status.toLowerCase() === currentFilter);
+    }
+    
+    if (filtered.length === 0) {
+        document.getElementById('assignmentsContent').style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    document.getElementById('assignmentsLoading').style.display = 'none';
+    document.getElementById('assignmentsContent').style.display = 'block';
+    emptyState.style.display = 'none';
+    
+    tbody.innerHTML = filtered.slice(0, 20).map(assignment => `
+        <tr onclick="showAssignmentDetails('${assignment.order_id}')">
+            <td><strong>#${assignment.order_id}</strong></td>
+            <td>${assignment.customer_name}</td>
+            <td>
+                <span class="badge ${
+                    assignment.status === 'pending' ? 'bg-warning' :
+                    assignment.status === 'assigned' ? 'bg-info' :
+                    assignment.status === 'in_transit' ? 'bg-primary' :
+                    'bg-danger'
+                }">
+                    ${assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
+                </span>
+            </td>
+            <td>${assignment.driver_name || '--'}</td>
+            <td><span class="badge bg-light text-dark">${assignment.attempts}</span></td>
+            <td>
+                <small class="text-muted">${calculateTimeInQueue(assignment.created_at)} ago</small>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showAssignmentDetails('${assignment.order_id}')">
+                    View
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Populate DLQ table
+function populateDLQTable() {
+    const tbody = document.getElementById('dlqTable');
+    const empty = document.getElementById('dlqEmpty');
+    
+    if (dashboardData.dlq.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    
+    empty.style.display = 'none';
+    tbody.innerHTML = dashboardData.dlq.slice(0, 10).map(item => `
+        <tr>
+            <td><strong>#${item.order_id}</strong></td>
+            <td>${item.customer_name}</td>
+            <td><small>${item.failure_reason}</small></td>
+            <td><span class="badge bg-light text-dark">${item.attempts}</span></td>
+            <td>
+                <small class="text-muted">${new Date(item.last_attempt).toLocaleTimeString()}</small>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-success" onclick="retryAssignment('${item.order_id}')">
+                    Retry
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Show assignment details
+function showAssignmentDetails(orderId) {
+    const assignment = dashboardData.assignments.find(a => a.order_id === orderId);
+    if (assignment) {
+        document.getElementById('detailOrderId').textContent = '#' + orderId;
+        document.getElementById('detailStatus').textContent = assignment.status;
+        document.getElementById('detailCustomer').textContent = assignment.customer_name;
+        document.getElementById('detailDriver').textContent = assignment.driver_name || '--';
+        document.getElementById('detailPickup').textContent = assignment.pickup_location;
+        document.getElementById('detailDropoff').textContent = assignment.dropoff_location;
+        
+        const modal = new bootstrap.Modal(document.getElementById('assignmentDetailsModal'));
+        modal.show();
+    }
+}
+
+// Filter assignments
+function filterAssignments(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.btn-group .btn-outline-secondary').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    populateAssignmentsTable();
+}
+
+// Retry assignment
+async function retryAssignment(orderId) {
+    if (confirm('Retry assignment for order #' + orderId + '?')) {
+        try {
+            const response = await fetch(`/admin/queue/retry/${orderId}`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                alert('Retry initiated');
+                refreshDashboard();
+            }
+        } catch (error) {
+            console.error('Error retrying assignment:', error);
+        }
+    }
+}
+
+// Auto refresh
+function toggleAutoRefresh() {
+    const btn = document.getElementById('autoRefreshBtn');
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        btn.classList.remove('active');
+    } else {
+        const interval = parseInt(document.getElementById('refreshInterval')?.value || 10000);
+        autoRefreshInterval = setInterval(refreshDashboard, interval);
+        btn.classList.add('active');
+    }
+}
+
+// Helper: Calculate time ago
+function calculateTimeInQueue(createdAt) {
+    const now = new Date();
+    const created = new Date(createdAt);
+    const diffMs = now - created;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'now';
+    if (diffMins < 60) return diffMins + 'm';
+    return Math.floor(diffMins / 60) + 'h';
+}
+
+// Save settings
+function saveSettings() {
+    const settings = {
+        refresh_interval: document.getElementById('refreshInterval').value,
+        notify_failed: document.getElementById('notifyFailed').checked,
+        notify_sla: document.getElementById('notifySLA').checked,
+        auto_escalate: document.getElementById('autoEscalate').checked
+    };
+    
+    localStorage.setItem('dashboardSettings', JSON.stringify(settings));
+    bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+    alert('Settings saved');
+}
+</script>
+{% endblock %}
