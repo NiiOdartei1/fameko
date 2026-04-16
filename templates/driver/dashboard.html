@@ -1,0 +1,610 @@
+{% extends "driver/base_driver.html" %}
+
+{% block title %}Driver Dashboard - Fameko{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-1">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0"><i class="fas fa-tachometer-alt me-3 text-primary"></i>Driver Dashboard</h1>
+                    <p class="text-muted mb-0">Welcome back, {{ current_user.name }}!</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 gradient-card-1">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center mb-3">
+                        <div class="rounded-circle bg-white bg-opacity-20 p-3">
+                            <i class="fas fa-boxes text-primary" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                    <h6 class="text-white mb-2">Active Deliveries</h6>
+                    <h2 class="text-white mb-0">{{ stats.get('active_deliveries', 0) if stats else 0 }}</h2>
+                    <small class="text-white-50">Currently assigned</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 gradient-card-2">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center mb-3">
+                        <div class="rounded-circle bg-white bg-opacity-20 p-3">
+                            <i class="fas fa-check-circle text-success" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                    <h6 class="text-white mb-2">Completed Today</h6>
+                    <h2 class="text-white mb-0">{{ stats.get('completed_today', 0) if stats else 0 }}</h2>
+                    <small class="text-white-50">Great work today!</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 gradient-card-3">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center mb-3">
+                        <div class="rounded-circle bg-white bg-opacity-20 p-3">
+                            <i class="fas fa-coins text-warning" style="font-size: 2.5rem;"></i>
+                        </div>
+                    </div>
+                    <h6 class="text-white mb-2">Today's Earnings</h6>
+                    <h2 class="text-white mb-0">₵{{ stats.get('earnings_today', 0) if stats else 0 }}</h2>
+                    <small class="text-white-50">Keep up the great work!</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 gradient-card-4">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center mb-3">
+                        <div class="rounded-circle bg-white bg-opacity-20 p-3">
+                            {% set rating = stats.get('rating', None) %}
+                            {% set rating_count = stats.get('rating_count', 0) %}
+                            {% if rating and rating_count > 0 %}
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-star text-warning" style="font-size: 1.5rem; margin-right: 0.5rem;"></i>
+                                    <span class="text-white fw-bold">{{ rating }}</span>
+                                </div>
+                            {% else %}
+                                <i class="fas fa-star text-white-50" style="font-size: 2.5rem;"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <h6 class="text-white mb-2">Customer Rating</h6>
+                    {% if rating and rating_count > 0 %}
+                        <h2 class="text-white mb-0">{{ rating }}/5.0</h2>
+                        <small class="text-white-50">{{ rating_count }} rating{{ 's' if rating_count != 1 else '' }}</small>
+                    {% else %}
+                        <h2 class="text-white mb-0">--</h2>
+                        <small class="text-white-50">No ratings yet</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="row">
+        <!-- Available Deliveries (New Section) -->
+        {% if available_deliveries %}
+        <div class="col-12 mb-4">
+            <div class="card border-0 shadow-sm border-start border-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Available Deliveries</h5>
+                        <div class="d-flex gap-2">
+                            <span class="badge bg-white text-success">{{ available_deliveries|length }}</span>
+                            <small class="text-white-50">available for you</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-hashtag me-1"></i>ID</th>
+                                    <th><i class="fas fa-map-marker-alt me-1"></i>Pickup</th>
+                                    <th><i class="fas fa-location-arrow me-1"></i>Dropoff</th>
+                                    <th><i class="fas fa-tachometer-alt me-1"></i>Distance</th>
+                                    <th><i class="fas fa-coins me-1"></i>You Earn</th>
+                                    <th><i class="fas fa-cog me-1"></i>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for delivery in available_deliveries %}
+                                    <tr>
+                                        <td><strong>DEL-{{ delivery.id }}</strong></td>
+                                        <td>
+                                            <small class="text-muted">{{ delivery.pickup_location|truncate(30) }}</small>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ delivery.dropoff_location|truncate(30) }}</small>
+                                        </td>
+                                        <td>{{ delivery.distance_km|default('N/A', true) }} km</td>
+                                        <td><strong class="text-success">₵{{ delivery.display_earnings|default('0', true) }}</strong></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success accept-available-btn" data-delivery-id="{{ delivery.id }}">
+                                                <i class="fas fa-check me-1"></i>Accept
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="viewDelivery('{{ delivery.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Today's Deliveries -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Your Today's Deliveries</h5>
+                        <div class="d-flex gap-2">
+                            <span class="badge bg-white text-primary">{{ deliveries|length if deliveries else 0 }}</span>
+                            <small class="text-white-50">{{ 'delivery' if deliveries|length == 1 else 'deliveries' }}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if deliveries %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th><i class="fas fa-hashtag me-1"></i>ID</th>
+                                        <th><i class="fas fa-map-marker-alt me-1"></i>Location</th>
+                                        <th><i class="fas fa-info-circle me-1"></i>Status</th>
+                                        <th><i class="fas fa-tachometer-alt me-1"></i>Distance</th>
+                                        <th><i class="fas fa-coins me-1"></i>Earnings</th>
+                                        <th><i class="fas fa-cog me-1"></i>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for delivery in deliveries %}
+                                        <tr>
+                                            <td><strong>DEL-{{ delivery.id }}</strong></td>
+                                            <td>
+                                                {% if delivery.order and delivery.order.customer %}
+                                                    {{ delivery.order.customer.address or 'Location not available' }}
+                                                {% else %}
+                                                    Customer location
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if delivery.status == 'Delivered' else 'info' if delivery.status == 'In Transit' else 'warning' if delivery.status == 'Assigned' else 'secondary' if delivery.status == 'Pending' else 'danger' if delivery.status == 'Cancelled' }}">
+                                                    {{ delivery.status }}
+                                                </span>
+                                                {% if delivery.status == 'Pending' %}
+                                                    <small class="text-muted d-block mt-1"><i class="fas fa-clock me-1"></i>Awaiting assignment</small>
+                                                {% elif delivery.status == 'Assigned' %}
+                                                    <small class="text-muted d-block mt-1"><i class="fas fa-truck me-1"></i>Driver assigned</small>
+                                                {% elif delivery.status == 'In Transit' %}
+                                                    <small class="text-muted d-block mt-1"><i class="fas fa-route me-1"></i>On the way</small>
+                                                {% elif delivery.status == 'Delivered' %}
+                                                    <small class="text-muted d-block mt-1"><i class="fas fa-check-circle me-1"></i>Delivered</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ delivery.distance_km|default('N/A', true) }} km</td>
+                                            <td>₵{{ delivery.driver_estimated_earnings|default('0', true) }}</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-primary view-delivery-btn" data-delivery-id="{{ delivery.id }}">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </button>
+                                                    {% if delivery.status == 'Assigned' %}
+                                                        <button class="btn btn-sm btn-success start-delivery-btn" data-delivery-id="{{ delivery.id }}" data-delivery-id-raw="{{ delivery.id }}">
+                                                            <i class="fas fa-play"></i> Start
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-inbox text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-3">No deliveries for today</p>
+                            <p class="text-muted">Check back later for new delivery assignments</p>
+                            <a href="{{ url_for('driver.map') }}" class="btn btn-primary mt-3">
+                                <i class="fas fa-map me-2"></i>View Map
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Online Status -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0">
+                            {% set is_online = stats.get('is_online', False) %}
+                            <div class="rounded-circle bg-{{ 'success' if is_online else 'danger' }} bg-opacity-10 p-3">
+                                <i class="fas fa-circle text-{{ 'success' if is_online else 'danger' }}"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0">Online Status</h6>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-{{ 'success' if is_online else 'danger' }} me-2">
+                                    {{ 'Online' if is_online else 'Offline' }}
+                                </span>
+                                {% if is_online %}
+                                    <small class="text-success"><i class="fas fa-bolt me-1"></i>Available for deliveries</small>
+                                {% else %}
+                                    <small class="text-muted"><i class="fas fa-pause-circle me-1"></i>Not available</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-{{ 'danger' if is_online else 'success' }} w-100" id="toggleStatusBtn" data-go-online="{{ 'false' if is_online else 'true' }}" onclick="toggleOnlineStatus()">
+                        <i class="fas fa-{{ 'pause' if is_online else 'play' }} me-2"></i>Go {{ 'Offline' if is_online else 'Online' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('driver.map') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-map me-2"></i>View Map
+                        </a>
+                        <a href="{{ url_for('driver.profile') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-user me-2"></i>Edit Profile
+                        </a>
+                        <a href="{{ url_for('driver.get_deliveries') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-history me-2"></i>Delivery History
+                        </a>
+                        <a href="{{ url_for('driver.support') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-headset me-2"></i>Support
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Summary -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Performance Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <small class="text-muted d-block">Total Deliveries</small>
+                            <h4 class="text-info">{{ stats.get('total_deliveries', 0) if stats else 0 }}</h4>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted d-block">Completion Rate</small>
+                            <h4 class="text-success">{{ stats.get('completion_rate', 0) if stats else 0 }}%</h4>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted d-block">Avg Rating</small>
+                            <h4 class="text-warning">{{ stats.get('avg_rating', 0) if stats else 0 }}/5</h4>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted d-block">Total Earnings</small>
+                            <h4 class="text-primary">₵{{ stats.get('total_earnings', 0) if stats else 0 }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accept Delivery Modal -->
+<div class="modal fade" id="acceptDeliveryModal" tabindex="-1" aria-labelledby="acceptDeliveryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="acceptDeliveryModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Accept New Delivery
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="acceptDeliveryForm">
+                    <div class="mb-3">
+                        <label for="deliveryId" class="form-label">Delivery ID</label>
+                        <input type="text" class="form-control" id="deliveryId" placeholder="Enter delivery ID (e.g., DEL-123)" required>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Enter the delivery ID you want to accept. Make sure you're available and ready to start the delivery.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="acceptDelivery()">
+                    <i class="fas fa-check me-2"></i>Accept Delivery
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.gradient-card-1 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.gradient-card-2 {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+.gradient-card-3 {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+.gradient-card-4 {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.btn-group .btn {
+    border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+    border-top-right-radius: 0.375rem;
+}
+
+.btn-group .btn:last-child {
+    border-top-left-radius: 0.375rem;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    background-color: #f8f9fa;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.card-header {
+    border-bottom: none;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle view delivery buttons
+    const viewButtons = document.querySelectorAll('.view-delivery-btn');
+    viewButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const deliveryId = this.getAttribute('data-delivery-id');
+            viewDelivery(deliveryId);
+        });
+    });
+
+    // Handle start delivery buttons
+    const startButtons = document.querySelectorAll('.start-delivery-btn');
+    startButtons.forEach(button => {
+        button.addEventListener('click', function(event) {
+            const deliveryId = this.getAttribute('data-delivery-id');
+            startDelivery(deliveryId, event);
+        });
+    });
+    
+    // Handle accept available delivery buttons
+    const acceptAvailableButtons = document.querySelectorAll('.accept-available-btn');
+    acceptAvailableButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const deliveryId = this.getAttribute('data-delivery-id');
+            acceptAvailableDelivery(deliveryId, this);
+        });
+    });
+});
+
+function viewDelivery(deliveryId) {
+    // Open delivery details in a modal or navigate
+    console.log('Viewing delivery details for DEL-' + deliveryId);
+    alert('Viewing delivery details for DEL-' + deliveryId);
+}
+
+function acceptAvailableDelivery(deliveryId, button) {
+    if (!deliveryId) {
+        alert('Invalid delivery ID');
+        return;
+    }
+    
+    if (confirm('Are you sure you want to accept delivery DEL-' + deliveryId + '?')) {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accepting...';
+        button.disabled = true;
+
+        fetch('/driver/deliveries/accept', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ delivery_id: deliveryId })
+        })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
+            if (data.success) {
+                alert('Delivery accepted successfully!');
+                location.reload();
+            } else {
+                throw new Error(data.error || 'Failed to accept delivery');
+            }
+        })
+        .catch(err => {
+            alert('Error accepting delivery: ' + err.message);
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        });
+    }
+}
+
+function startDelivery(deliveryId, event) {
+    // Get the delivery ID from the button's data attribute
+    const button = event.target;
+    const deliveryIdFromButton = button.getAttribute('data-delivery-id');
+    
+    if (confirm('Are you sure you want to start delivery DEL-' + deliveryIdFromButton + '?')) {
+        // Show loading state
+        const originalText = button.textContent;
+        button.textContent = 'Starting...';
+        button.disabled = true;
+        
+        // Make API call to start delivery
+        fetch('/driver/deliveries/' + deliveryIdFromButton + '/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error starting delivery: ' + error.message);
+            
+            // Restore button state
+            button.textContent = originalText;
+            button.disabled = false;
+        });
+    }
+}
+
+function acceptDelivery(button) {  // ← receive button as param
+    const deliveryId = document.getElementById('deliveryId').value.trim();
+    if (!deliveryId) { alert('Please enter a delivery ID'); return; }
+
+    if (confirm('Are you sure you want to accept delivery ' + deliveryId + '?')) {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accepting...';
+        button.disabled = true;
+
+        fetch('/driver/deliveries/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ delivery_id: deliveryId })
+        })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('acceptDeliveryModal'))?.hide();
+                location.reload();
+            } else throw new Error(data.error);
+        })
+        .catch(err => {
+            alert('Error accepting delivery: ' + err.message);
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        });
+    }
+}
+
+function toggleOnlineStatus() {
+    console.log('toggleOnlineStatus called');
+    // Get the button and its data attributes
+    const button = document.getElementById('toggleStatusBtn');
+    console.log('Button found:', button);
+    console.log('Button ID search:', 'toggleStatusBtn');
+    
+    if (!button) {
+        console.error('Button not found! Available elements:', document.querySelectorAll('[id*="toggle"]'));
+        return;
+    }
+    
+    const goOnline = button.getAttribute('data-go-online') === 'true';
+    const status = goOnline ? 'online' : 'offline';
+    
+    console.log('Go online:', goOnline);
+    console.log('Status:', status);
+    
+    if (confirm('Are you sure you want to go ' + status + '?')) {
+        // Show loading state
+        const originalText = button.textContent;
+        button.textContent = 'Updating...';
+        button.disabled = true;
+        
+        // Make API call
+        fetch('/driver/toggle-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ is_online: goOnline })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error updating status: ' + error.message);
+            
+            // Restore button state
+            button.textContent = originalText;
+            button.disabled = false;
+        });
+    }
+}
+
+function refreshDashboard() {
+    location.reload();
+}
+</script>
+{% endblock %}
