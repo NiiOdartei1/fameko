@@ -1,0 +1,462 @@
+{% extends "admin/base_admin.html" %}
+
+{% block page_title %}
+    <i class="fas fa-chart-bar"></i> Analytics & Reports
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex gap-2">
+    <select class="form-select form-select-sm" style="width: 150px;" id="timeframeSelect" onchange="changeTimeframe()">
+        <option value="7days" {% if timeframe == '7days' %}selected{% endif %}>Last 7 Days</option>
+        <option value="30days" {% if timeframe == '30days' %}selected{% endif %}>Last 30 Days</option>
+        <option value="90days" {% if timeframe == '90days' %}selected{% endif %}>Last 90 Days</option>
+        <option value="all" {% if timeframe == 'all' %}selected{% endif %}>All Time</option>
+    </select>
+    <a href="{{ url_for('admin.financial_breakdown') }}" class="btn btn-sm btn-info">
+        <i class="fas fa-chart-pie"></i> Detailed Financials
+    </a>
+    <button class="btn btn-sm btn-primary" onclick="exportReport()">
+        <i class="fas fa-download"></i> Export
+    </button>
+</div>
+{% endblock %}
+
+{% block main_content %}
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .metric-card.orders {
+        background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    }
+
+    .metric-card.revenue {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .metric-card.drivers {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .metric-card.customers {
+        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.9;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+    }
+
+    .metric-change {
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        opacity: 0.9;
+    }
+
+    .metric-change.positive {
+        color: #86efac;
+    }
+
+    .metric-change.negative {
+        color: #fca5a5;
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .chart-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: #1e293b;
+    }
+
+    .data-table {
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .data-table table {
+        margin-bottom: 0;
+    }
+
+    .data-table th {
+        background-color: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        color: #64748b;
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .data-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-success { background-color: #d1fae5; color: #065f46; }
+    .status-pending { background-color: #fef3c7; color: #92400e; }
+    .status-warning { background-color: #fee2e2; color: #7f1d1d; }
+
+    .trend-icon {
+        font-weight: bold;
+        margin-right: 0.25rem;
+    }
+
+    .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+        margin: 1rem 0;
+        height: 200px;
+    }
+
+    .bar {
+        flex: 1;
+        background: linear-gradient(to top, #3b82f6, #93c5fd);
+        border-radius: 0.25rem;
+        position: relative;
+        min-height: 20px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding-bottom: 0.5rem;
+    }
+
+    .progress-bar-container {
+        flex: 1;
+        margin: 0 1rem;
+    }
+
+    .progress-bar {
+        background: #e2e8f0;
+        height: 8px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #10b981;
+    }
+    
+    .progress-fill.pending {
+        background: #f59e0b;
+    }
+    
+    .progress-fill.cancelled {
+        background: #ef4444;
+    }
+    
+    .progress-fill.default {
+        background: #3b82f6;
+    }
+    
+    .bar-fill {
+        height: 100%;
+        background: #3b82f6;
+    }
+</style>
+
+<!-- Metric Cards Row -->
+<div class="row mb-4 g-3">
+    <div class="col-xl-3 col-lg-6">
+        <div class="metric-card orders">
+            <div class="metric-label">Total Orders</div>
+            <div class="metric-value">{{ total_orders or 0 }}</div>
+            <div class="metric-change positive">
+                <i class="fas fa-arrow-up trend-icon"></i> <small>({{ completed_orders or 0 }} completed)</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-lg-6">
+        <div class="metric-card revenue">
+            <div class="metric-label">Verified Revenue</div>
+            <div class="metric-value">₵{{ "%.2f"|format(total_revenue or 0) }}</div>
+            <div class="metric-change positive">
+                <i class="fas fa-check-circle trend-icon"></i> <small>Completed only</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-lg-6">
+        <div class="metric-card drivers">
+            <div class="metric-label">Active Drivers</div>
+            <div class="metric-value">{{ active_drivers or 0 }} / {{ total_drivers or 0 }}</div>
+            <div class="metric-change positive">
+                <i class="fas fa-arrow-up trend-icon"></i> Live data
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-lg-6">
+        <div class="metric-card customers">
+            <div class="metric-label">Customers</div>
+            <div class="metric-value">{{ total_customers or 0 }}</div>
+            <div class="metric-change positive">
+                <i class="fas fa-arrow-up trend-icon"></i> Live data
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4 g-3">
+    <!-- Orders Trend Chart -->
+    <div class="col-lg-8">
+        <div class="chart-container">
+            <div class="chart-title">Orders Trend ({{ timeframe.replace('days', ' Days') }})</div>
+            <div class="bar-chart" id="ordersChart">
+                {% if orders_trend %}
+                    {% set max_orders = orders_trend|map(attribute='orders')|max %}
+                    {% for day in orders_trend[:14] %}
+                        <div class="bar" data-height="{{ (day.orders / max_orders * 100) if max_orders > 0 else 0 }}">
+                            <span>{{ day.orders }}</span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted w-100">No data available</div>
+                {% endif %}
+            </div>
+            <small class="text-muted">Showing daily orders for selected period</small>
+        </div>
+    </div>
+
+    <!-- Order Status Breakdown -->
+    <div class="col-lg-4">
+        <div class="chart-container">
+            <div class="chart-title">Order Status Breakdown</div>
+            <div style="padding: 1rem 0;">
+                {% if status_breakdown %}
+                    {% set total_status_orders = status_breakdown.values()|sum %}
+                    {% for status, count in status_breakdown.items() %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span style="color: #64748b;">{{ status|title }}</span>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill {{ 
+                                        'completed' if status == 'completed' else 
+                                        'pending' if status == 'pending' else 
+                                        'cancelled' if status == 'cancelled' else 
+                                        'default' 
+                                    }}" data-percentage="{{ (count / total_status_orders * 100) if total_status_orders > 0 else 0 }}"></div>
+                                </div>
+                            </div>
+                            <span style="color: #1e293b; font-weight: 600;">{{ count }}</span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted">No order status data available</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Drivers Table -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="data-table">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Driver</th>
+                        <th style="text-align: center;">Deliveries</th>
+                        <th style="text-align: center;">Rating</th>
+                        <th style="text-align: center;">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if drivers_table %}
+                        {% for driver in drivers_table %}
+                            <tr>
+                                <td>
+                                    <strong>{{ driver.name }}</strong>
+                                    <br><small style="color: #94a3b8;">ID: DRV-{{ driver.id }}</small>
+                                </td>
+                                <td style="text-align: center;"><strong>{{ driver.deliveries }}</strong></td>
+                                <td style="text-align: center;">
+                                    <strong>{{ driver.rating }}</strong> {% if driver.rating != '-' %}⭐{% endif %}
+                                </td>
+                                <td style="text-align: center;"><strong>₵{{ "%.2f"|format(driver.revenue) }}</strong></td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No driver data available</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Top Customers Table -->
+    <div class="col-lg-6">
+        <div class="data-table">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th style="text-align: center;">Orders</th>
+                        <th style="text-align: center;">Total Spent</th>
+                        <th style="text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if customers_table %}
+                        {% for customer in customers_table %}
+                            <tr>
+                                <td>
+                                    <strong>{{ customer.name }}</strong>
+                                    <br><small style="color: #94a3b8;">{{ customer.email }}</small>
+                                </td>
+                                <td style="text-align: center;"><strong>{{ customer.orders }}</strong></td>
+                                <td style="text-align: center;"><strong>₵{{ "%.2f"|format(customer.spent) }}</strong></td>
+                                <td style="text-align: center;">
+                                    <span class="status-badge status-{{ 'success' if customer.status == 'Active' else 'warning' }}">{{ customer.status }}</span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No customer data available</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Methods -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="data-table">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Payment Method</th>
+                        <th style="width: 20%; text-align: center;">Transactions</th>
+                        <th style="width: 20%; text-align: center;">Volume</th>
+                        <th style="width: 20%; text-align: center;">Percentage</th>
+                        <th style="width: 15%; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if payment_table %}
+                        {% for payment in payment_table %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-{{ 
+                                        'credit-card' if 'card' in payment.method.lower() else 
+                                        'mobile-alt' if 'mobile' in payment.method.lower() else 
+                                        'money-bill-wave' 
+                                    }}" style="color: #3b82f6; margin-right: 0.5rem;"></i>
+                                    <strong>{{ payment.method|title }}</strong>
+                                </td>
+                                <td style="text-align: center;">{{ payment.transactions }}</td>
+                                <td style="text-align: center;"><strong>₵{{ "%.2f"|format(payment.volume) }}</strong></td>
+                                <td style="text-align: center;">
+                                    <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; width: 60px; margin: 0 auto;">
+                                        <div class="bar-fill" data-percentage="{{ payment.percentage }}"></div>
+                                    </div>
+                                    <small>{{ payment.percentage }}%</small>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span class="status-badge status-{{ 'success' if payment.status == 'Active' else 'pending' }}">{{ payment.status }}</span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No payment data available</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function changeTimeframe() {
+    const timeframe = document.getElementById('timeframeSelect').value;
+    window.location.href = `?timeframe=${timeframe}`;
+}
+
+function exportReport() {
+    const timeframe = document.getElementById('timeframeSelect').value;
+    alert(`Generating report for: ${timeframe}`);
+    // In a real app, this would generate and download a PDF or CSV
+}
+
+// Apply dynamic styles from data attributes
+document.addEventListener('DOMContentLoaded', function() {
+    // Set bar heights for orders chart
+    const bars = document.querySelectorAll('#ordersChart .bar');
+    bars.forEach(bar => {
+        const height = bar.getAttribute('data-height');
+        if (height) {
+            bar.style.height = height + '%';
+        }
+    });
+    
+    // Set progress bar widths for status breakdown
+    const progressFills = document.querySelectorAll('.progress-fill');
+    progressFills.forEach(fill => {
+        const percentage = fill.getAttribute('data-percentage');
+        if (percentage) {
+            fill.style.width = percentage + '%';
+        }
+    });
+    
+    // Set progress bar widths for payment methods
+    const barFills = document.querySelectorAll('.bar-fill');
+    barFills.forEach(fill => {
+        const percentage = fill.getAttribute('data-percentage');
+        if (percentage) {
+            fill.style.width = percentage + '%';
+        }
+    });
+});
+</script>
+{% endblock %}
