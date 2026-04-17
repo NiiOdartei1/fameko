@@ -35,7 +35,7 @@ services:
   - type: web
     name: fameko-routing-go
     runtime: go
-    buildCommand: cd routing && go build -o ../routing_service_go
+    buildCommand: go build -o routing_service_go routing_service/routing_service.go
     startCommand: ./routing_service_go
     envVars:
       - key: PORT
@@ -51,8 +51,10 @@ services:
     name: fameko-routing-python
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn routing_service:app -w 1 -b 0.0.0.0:5001
+    startCommand: uvicorn routing_service:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PORT
+        value: 5001
       - key: DATABASE_URL
         fromDatabase:
           name: fameko-db
