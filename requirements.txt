@@ -10,12 +10,12 @@ Flask-Caching==2.0.2
 Flask-SocketIO==5.3.4
 
 # Database
-SQLAlchemy==2.0.20
+SQLAlchemy==2.0.23
 
 # API & Routing
 FastAPI==0.103.0
 uvicorn==0.23.2
-pydantic==2.3.0
+pydantic>=2.7.0
 requests==2.31.0
 
 # Utilities
