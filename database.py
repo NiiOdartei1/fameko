@@ -13,10 +13,22 @@ def init_db(app):
     with app.app_context():
         app.logger.info("=== Starting database initialization ===")
         app.logger.info(f"Database URI: {app.config.get('SQLALCHEMY_DATABASE_URI', 'Not set')}")
+        
+        # Log all tables that will be created
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        app.logger.info(f"Existing tables in database: {existing_tables}")
+        
         app.logger.info("Creating all database tables...")
         db.create_all()
+        
+        # Log all tables after creation
+        inspector = inspect(db.engine)
+        all_tables = inspector.get_table_names()
+        app.logger.info(f"All tables in database after creation: {all_tables}")
+        
         app.logger.info("=== Database tables created successfully ===")
-        app.logger.info("Tables created: drivers, customers, admins, orders, deliveries, driver_locations")
 
 
 def ensure_schema(app):
