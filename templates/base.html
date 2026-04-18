@@ -272,12 +272,14 @@
     
     <!-- Splash Screen Script -->
     <script>
-        // Show splash screen on smaller screens only once per session
+        // Show splash screen on smaller screens only once per session and only on home page
         window.addEventListener('load', function() {
             const splashScreen = document.getElementById('splash-screen');
             const splashShown = sessionStorage.getItem('splashScreenShown');
+            const currentPath = window.location.pathname;
 
-            if (window.innerWidth <= 768 && splashScreen && !splashShown) {
+            // Only show on home page (/ or /index)
+            if (window.innerWidth <= 768 && splashScreen && !splashShown && (currentPath === '/' || currentPath === '/index')) {
                 splashScreen.classList.add('show');
                 sessionStorage.setItem('splashScreenShown', 'true');
 
@@ -287,7 +289,7 @@
                     splashScreen.style.display = 'none';
                 }, 2500);
             } else {
-                // Hide splash screen immediately on larger screens or if already shown
+                // Hide splash screen immediately on larger screens, if already shown, or not on home page
                 if (splashScreen) {
                     splashScreen.style.display = 'none';
                 }
