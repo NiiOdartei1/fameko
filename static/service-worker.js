@@ -5,13 +5,10 @@ const urlsToCache = [
   '/driver/register',
   '/customer/login',
   '/customer/register',
-  '/static/css/bootstrap.min.css',
-  '/static/css/custom.css',
-  '/static/js/socket.io.min.js',
-  '/static/js/jquery.min.js',
-  '/static/js/bootstrap.bundle.min.js',
   '/static/icons/icon-192x192.png',
-  '/static/icons/icon-512x512.png'
+  '/static/icons/icon-512x512.png',
+  '/static/manifest.json',
+  '/static/service-worker.js'
 ];
 
 // Install event - cache assets

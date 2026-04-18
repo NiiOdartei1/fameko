@@ -97,9 +97,12 @@ class ProductionConfig(Config):
 
 # Select config based on environment
 def get_config():
-    """Get the appropriate configuration based on FLASK_ENV"""
+    """Get the appropriate configuration based on FLASK_ENV or DATABASE_URL"""
     env = os.environ.get('FLASK_ENV', 'development').lower()
-    if env == 'production':
+    # Also check for DATABASE_URL which Render provides in production
+    database_url = os.environ.get('DATABASE_URL')
+    
+    if env == 'production' or database_url:
         return ProductionConfig()
     elif env == 'testing':
         return TestingConfig()
