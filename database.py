@@ -11,8 +11,12 @@ db = SQLAlchemy()
 def init_db(app):
     """Initialize database with the app context"""
     with app.app_context():
+        app.logger.info("=== Starting database initialization ===")
+        app.logger.info(f"Database URI: {app.config.get('SQLALCHEMY_DATABASE_URI', 'Not set')}")
+        app.logger.info("Creating all database tables...")
         db.create_all()
-        app.logger.info("Database tables created successfully")
+        app.logger.info("=== Database tables created successfully ===")
+        app.logger.info("Tables created: drivers, customers, admins, orders, deliveries, driver_locations")
 
 
 def ensure_schema(app):
