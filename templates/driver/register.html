@@ -490,7 +490,7 @@
                                 <img src="/static/icons/bicycle.avif" alt="Bicycle delivery" class="vehicle-icon">
                                 <p>Bicycle delivery</p>
                             </div>
-                            <div class="vehicle-option" data-value="praggia" data-regions="Ashanti">
+                            <div class="vehicle-option" data-value="praggia" data-regions="all">
                                 <img src="/static/icons/praggia.jpg" alt="Praggia delivery" class="vehicle-icon">
                                 <p>Praggia delivery</p>
                             </div>
@@ -815,19 +815,8 @@
                     }
                 }
             } else {
-                // For non-Ashanti regions, hide Praggia and show all others
-                if (vehicleValue === 'praggia') {
-                    option.classList.add('hidden');
-                    
-                    // If this vehicle was selected, deselect it
-                    if (option.dataset.value === selectedVehicle) {
-                        option.classList.remove('selected');
-                        document.getElementById('vehicle_type').value = '';
-                        document.getElementById('service_type').value = '';
-                    }
-                } else {
-                    option.classList.remove('hidden');
-                }
+                // For non-Ashanti regions, show all vehicles including Praggia
+                option.classList.remove('hidden');
             }
         });
     }

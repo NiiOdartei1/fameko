@@ -67,11 +67,12 @@ def _register_step1():
         return redirect(url_for('driver.register'))
     
     # Validate vehicle type restrictions by region
-    if vehicle_type == 'praggia' and region != 'Ashanti':
-        return jsonify({
-            'success': False,
-            'message': 'Praggia delivery is only available in Ashanti region'
-        }), 400
+    # Praggia is now available in all regions
+    # if vehicle_type == 'praggia' and region != 'Ashanti':
+    #     return jsonify({
+    #         'success': False,
+    #         'message': 'Praggia delivery is only available in Ashanti region'
+    #     }), 400
     
     # Validate service type restrictions by vehicle type
     restricted_vehicles = ['bicycle', 'abobo_yaa', 'truck']
