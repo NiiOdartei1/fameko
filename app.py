@@ -69,6 +69,15 @@ def create_app(config=None):
 
     # Initialize database tables
     init_db(app)
+
+    # Download GraphML files from Google Drive if configured
+    if os.environ.get('GOOGLE_DRIVE_ASHANTI_FILE_ID'):
+        try:
+            from utils.google_drive import download_graphml_files
+            logger.info("Downloading GraphML files from Google Drive...")
+            download_graphml_files()
+        except Exception as e:
+            logger.warning(f"Failed to download GraphML files from Google Drive: {e}")
     
     # Initialize CSRF Protection (init later so we can exempt socket.io)
     csrf = CSRFProtect()
