@@ -11,3 +11,4 @@ routing_service_go filter=lfs diff=lfs merge=lfs -text
 routing_service.exe filter=lfs diff=lfs merge=lfs -text
 routing/routing_service.exe filter=lfs diff=lfs merge=lfs -text
 data/*.graphml filter=lfs diff=lfs merge=lfs -text
+data_backup/*.graphml filter=lfs diff=lfs merge=lfs -text
