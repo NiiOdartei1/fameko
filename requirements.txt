@@ -11,6 +11,7 @@ Flask-SocketIO==5.3.4
 
 # Database
 SQLAlchemy==2.0.20
+psycopg2-binary==2.9.9
 
 # API & Routing
 FastAPI==0.103.0
