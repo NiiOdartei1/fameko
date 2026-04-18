@@ -66,6 +66,9 @@ def create_app(config=None):
     db.init_app(app)
     mail.init_app(app)
     cache.init_app(app)
+
+    # Initialize database tables
+    init_db(app)
     
     # Initialize CSRF Protection (init later so we can exempt socket.io)
     csrf = CSRFProtect()
