@@ -2,8 +2,33 @@
 
 {% block title %}Driver Login - Fameko{% endblock %}
 
+{% block extra_css %}
+<style>
+    .video-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: -1;
+    }
+    .login-container {
+        position: relative;
+        z-index: 1;
+    }
+    .card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
+<video class="video-background" autoplay muted loop playsinline>
+    <source src="{{ url_for('static', filename='video/13802600-uhd_3840_2160_25fps.mp4') }}" type="video/mp4">
+</video>
+<div class="container login-container">
     <div class="row justify-content-center my-5">
         <div class="col-md-6 col-lg-5">
             <div class="card">
