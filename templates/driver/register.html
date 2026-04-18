@@ -300,6 +300,31 @@
         margin-top: 1rem;
     }
 
+    @media (max-width: 768px) {
+        .vehicle-type-grid {
+            display: flex;
+            overflow-x: auto;
+            gap: 0.75rem;
+            padding-bottom: 0.5rem;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+
+        .vehicle-type-grid::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .vehicle-type-grid::-webkit-scrollbar-thumb {
+            background: #007bff;
+            border-radius: 3px;
+        }
+
+        .vehicle-option {
+            min-width: 120px;
+            flex-shrink: 0;
+        }
+    }
+
     .vehicle-option {
         cursor: pointer;
         padding: 1rem;
