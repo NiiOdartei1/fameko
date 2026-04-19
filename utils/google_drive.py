@@ -73,6 +73,22 @@ def download_graphml_files():
         {
             'file_id': os.environ.get('GOOGLE_DRIVE_ASHANTI_FILE_ID'),
             'destination': 'data/Ashanti_Region_Ghana.graphml'
+        },
+        {
+            'file_id': os.environ.get('GOOGLE_DRIVE_NORTH_EAST_FILE_ID'),
+            'destination': 'data/North_East_Region_Ghana.graphml'
+        },
+        {
+            'file_id': os.environ.get('GOOGLE_DRIVE_UPPER_EAST_FILE_ID'),
+            'destination': 'data/Upper_East_Region_Ghana.graphml'
+        },
+        {
+            'file_id': os.environ.get('GOOGLE_DRIVE_UPPER_WEST_FILE_ID'),
+            'destination': 'data/Upper_West_Region_Ghana.graphml'
+        },
+        {
+            'file_id': os.environ.get('GOOGLE_DRIVE_SAVANNAH_FILE_ID'),
+            'destination': 'data/Savannah_Region_Ghana.graphml'
         }
     ]
     
