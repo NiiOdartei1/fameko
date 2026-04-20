@@ -79,6 +79,10 @@ def download_graphml_files():
             'destination': 'data/North_East_Region_Ghana.graphml'
         },
         {
+            'file_id': os.environ.get('GOOGLE_DRIVE_NORTHERN_FILE_ID'),
+            'destination': 'data/Northern_Region_Ghana.graphml'
+        },
+        {
             'file_id': os.environ.get('GOOGLE_DRIVE_UPPER_EAST_FILE_ID'),
             'destination': 'data/Upper_East_Region_Ghana.graphml'
         },
