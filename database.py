@@ -29,6 +29,25 @@ def init_db(app):
         app.logger.info(f"All tables in database after creation: {all_tables}")
         
         app.logger.info("=== Database tables created successfully ===")
+        
+        # Create default admin if none exists
+        from models import Admin
+        admin_exists = Admin.query.filter_by(email='niiodartei24@gmail.com').first()
+        if not admin_exists:
+            default_admin = Admin(
+                username='admin',
+                email='niiodartei24@gmail.com'
+            )
+            default_admin.set_password('odartei')
+            default_admin.can_manage_drivers = True
+            default_admin.can_view_analytics = True
+            default_admin.can_manage_orders = True
+            default_admin.can_manage_admins = True
+            default_admin.is_active = True
+            
+            db.session.add(default_admin)
+            db.session.commit()
+            app.logger.info("Default admin account created: niiodartei24@gmail.com")
 
 
 def ensure_schema(app):
