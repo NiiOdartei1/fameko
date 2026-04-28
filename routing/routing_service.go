@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -209,8 +210,11 @@ func main() {
 		})
 	})
 
-	// Start server
-	port := "8012"
+	// Start server - use PORT env var if set (for Railway), otherwise default to 8012
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8012"
+	}
 	log.Printf("🚀 Go Routing Service starting on port %s", port)
 	log.Printf("📊 Service URL: http://0.0.0.0:%s", port)
 	log.Printf("🔗 Route API: http://0.0.0.0:%s/route/calculate", port)
