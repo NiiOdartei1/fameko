@@ -1,0 +1,8 @@
+routing/
+*.exe
+.git/
+.venv/
+__pycache__/
+*.pyc
+data_backup/
+google-maps-services-python-master/
