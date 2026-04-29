@@ -1,8 +1,10 @@
 import multiprocessing
+import os
 
 # Worker class for Flask-SocketIO with gevent
 worker_class = 'gevent'
-workers = multiprocessing.cpu_count() * 2 + 1
+# Use fewer workers to prevent memory issues on Railway (1GB RAM limit)
+workers = 2
 
 # WebSocket support
 worker_connections = 1000
@@ -19,5 +21,6 @@ loglevel = 'info'
 # Process naming
 proc_name = 'fameko'
 
-# Bind address (Render sets this via PORT)
-bind = '0.0.0.0:10000'
+# Bind address - use PORT env var (Railway/Render provide this), default to 10000
+port = os.environ.get('PORT', '10000')
+bind = f'0.0.0.0:{port}'
