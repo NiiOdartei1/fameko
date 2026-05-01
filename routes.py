@@ -20,7 +20,7 @@ def login():
     return render_template('login.html')
 
 
-@main_bp.route('/favicon.ico')
+@main_bp.route('/fameko.ico')
 def favicon():
     """Return favicon"""
-    return send_from_directory('static/icons', 'fameko_logo.png', mimetype='image/png')
+    return send_from_directory('static/icons', 'fameko.ico', mimetype='image/png')
