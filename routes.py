@@ -23,5 +23,4 @@ def login():
 @main_bp.route('/favicon.ico')
 def favicon():
     """Return favicon"""
-    # For now, return a simple icon or 404 if not found
-    return '', 204  # No content response
+    return send_from_directory('static/icons', 'fameko_logo.png', mimetype='image/png')
